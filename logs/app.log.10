@@ -1,0 +1,98 @@
+2025-09-07 15:00:41,336 INFO: Application startup [in E:\study\code\github\local_document_search\app\__init__.py:34]
+2025-09-07 15:01:05,881 INFO: Application startup [in E:\study\code\github\local_document_search\app\__init__.py:34]
+2025-09-07 15:01:17,381 INFO: Application startup [in E:\study\code\github\local_document_search\app\__init__.py:34]
+2025-09-07 15:10:28,011 INFO: Starting folder scan with parameters: path=E:\documents\文摘\测试, from=, to=, recursive=True, types=sql,py,md,html,htm,pdf,docx,xlsx,pptx [in E:\study\code\github\local_document_search\app\routes\convert.py:23]
+2025-09-07 15:10:28,014 INFO: Scan found 5 matching files. [in E:\study\code\github\local_document_search\app\routes\convert.py:31]
+2025-09-07 15:10:28,095 ERROR: Failed to convert file: E:\documents\文摘\测试\1.4.2+Kettle.doc. Reason: Unsupported file type: doc [in E:\study\code\github\local_document_search\app\routes\convert.py:53]
+2025-09-07 15:10:28,193 ERROR: Failed to convert file: E:\documents\文摘\测试\基于大语言模型构建对话系统初探.pptx. Reason: Converter failed for E:\documents\文摘\测试\基于大语言模型构建对话系统初探.pptx: File conversion failed after 1 attempts:
+ - PptxConverter threw MissingDependencyException with message: PptxConverter recognized the input as a potential .pptx file, but the dependencies needed to read .pptx files have not been installed. To resolve this error, include the optional dependency [pptx] or [all] when installing MarkItDown. For example:
+
+* pip install markitdown[pptx]
+* pip install markitdown[all]
+* pip install markitdown[pptx, ...]
+* etc.
+
+Traceback (most recent call last):
+  File "E:\study\code\github\local_document_search\app\services\converter.py", line 41, in convert_to_markdown
+    result = md.convert(f)
+             ^^^^^^^^^^^^^
+  File "D:\Program Files\Python\Python312\Lib\site-packages\markitdown\_markitdown.py", line 289, in convert
+    return self.convert_stream(source, stream_info=stream_info, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python\Python312\Lib\site-packages\markitdown\_markitdown.py", line 377, in convert_stream
+    return self._convert(file_stream=stream, stream_info_guesses=guesses, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python\Python312\Lib\site-packages\markitdown\_markitdown.py", line 619, in _convert
+    raise FileConversionException(attempts=failed_attempts)
+markitdown._exceptions.FileConversionException: File conversion failed after 1 attempts:
+ - PptxConverter threw MissingDependencyException with message: PptxConverter recognized the input as a potential .pptx file, but the dependencies needed to read .pptx files have not been installed. To resolve this error, include the optional dependency [pptx] or [all] when installing MarkItDown. For example:
+
+* pip install markitdown[pptx]
+* pip install markitdown[all]
+* pip install markitdown[pptx, ...]
+* etc.
+
+ [in E:\study\code\github\local_document_search\app\routes\convert.py:53]
+2025-09-07 15:10:28,229 ERROR: Failed to convert file: E:\documents\文摘\测试\数据库训练营_MySQL_hdpan.docx. Reason: Converter failed for E:\documents\文摘\测试\数据库训练营_MySQL_hdpan.docx: File conversion failed after 1 attempts:
+ - DocxConverter threw MissingDependencyException with message: DocxConverter recognized the input as a potential .docx file, but the dependencies needed to read .docx files have not been installed. To resolve this error, include the optional dependency [docx] or [all] when installing MarkItDown. For example:
+
+* pip install markitdown[docx]
+* pip install markitdown[all]
+* pip install markitdown[docx, ...]
+* etc.
+
+Traceback (most recent call last):
+  File "E:\study\code\github\local_document_search\app\services\converter.py", line 41, in convert_to_markdown
+    result = md.convert(f)
+             ^^^^^^^^^^^^^
+  File "D:\Program Files\Python\Python312\Lib\site-packages\markitdown\_markitdown.py", line 289, in convert
+    return self.convert_stream(source, stream_info=stream_info, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python\Python312\Lib\site-packages\markitdown\_markitdown.py", line 377, in convert_stream
+    return self._convert(file_stream=stream, stream_info_guesses=guesses, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python\Python312\Lib\site-packages\markitdown\_markitdown.py", line 619, in _convert
+    raise FileConversionException(attempts=failed_attempts)
+markitdown._exceptions.FileConversionException: File conversion failed after 1 attempts:
+ - DocxConverter threw MissingDependencyException with message: DocxConverter recognized the input as a potential .docx file, but the dependencies needed to read .docx files have not been installed. To resolve this error, include the optional dependency [docx] or [all] when installing MarkItDown. For example:
+
+* pip install markitdown[docx]
+* pip install markitdown[all]
+* pip install markitdown[docx, ...]
+* etc.
+
+ [in E:\study\code\github\local_document_search\app\routes\convert.py:53]
+2025-09-07 15:10:28,267 ERROR: Failed to convert file: E:\documents\文摘\测试\模型清单.xlsx. Reason: Converter failed for E:\documents\文摘\测试\模型清单.xlsx: File conversion failed after 1 attempts:
+ - XlsxConverter threw MissingDependencyException with message: XlsxConverter recognized the input as a potential .xlsx file, but the dependencies needed to read .xlsx files have not been installed. To resolve this error, include the optional dependency [xlsx] or [all] when installing MarkItDown. For example:
+
+* pip install markitdown[xlsx]
+* pip install markitdown[all]
+* pip install markitdown[xlsx, ...]
+* etc.
+
+Traceback (most recent call last):
+  File "E:\study\code\github\local_document_search\app\services\converter.py", line 41, in convert_to_markdown
+    result = md.convert(f)
+             ^^^^^^^^^^^^^
+  File "D:\Program Files\Python\Python312\Lib\site-packages\markitdown\_markitdown.py", line 289, in convert
+    return self.convert_stream(source, stream_info=stream_info, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python\Python312\Lib\site-packages\markitdown\_markitdown.py", line 377, in convert_stream
+    return self._convert(file_stream=stream, stream_info_guesses=guesses, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python\Python312\Lib\site-packages\markitdown\_markitdown.py", line 619, in _convert
+    raise FileConversionException(attempts=failed_attempts)
+markitdown._exceptions.FileConversionException: File conversion failed after 1 attempts:
+ - XlsxConverter threw MissingDependencyException with message: XlsxConverter recognized the input as a potential .xlsx file, but the dependencies needed to read .xlsx files have not been installed. To resolve this error, include the optional dependency [xlsx] or [all] when installing MarkItDown. For example:
+
+* pip install markitdown[xlsx]
+* pip install markitdown[all]
+* pip install markitdown[xlsx, ...]
+* etc.
+
+ [in E:\study\code\github\local_document_search\app\routes\convert.py:53]
+2025-09-07 15:10:28,279 ERROR: Failed to convert file: E:\documents\文摘\测试\调研对接联系表.xls. Reason: Unsupported file type: xls [in E:\study\code\github\local_document_search\app\routes\convert.py:53]
+2025-09-07 15:10:28,303 INFO: Scan completed in 0.29s. Processed: 0, Skipped: 0, Errors: 5 [in E:\study\code\github\local_document_search\app\routes\convert.py:91]
+2025-09-07 15:16:04,268 INFO: Starting folder scan with parameters: path=E:\documents\文摘\测试, from=, to=, recursive=True, types=sql,py,md,html,htm,pdf,docx,xlsx,pptx [in E:\study\code\github\local_document_search\app\routes\convert.py:23]
+2025-09-07 15:16:04,270 INFO: Scan found 5 matching files. [in E:\study\code\github\local_document_search\app\routes\convert.py:31]
+2025-09-07 15:16:04,275 ERROR: Failed to convert file: E:\documents\文摘\测试\1.4.2+Kettle.doc. Reason: Unsupported file type: doc [in E:\study\code\github\local_document_search\app\routes\convert.py:53]

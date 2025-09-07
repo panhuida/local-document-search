@@ -1,0 +1,8 @@
+Flask
+python-dotenv
+SQLAlchemy
+psycopg2-binary
+Flask-Migrate
+markitdown[all]
+Markdown
+pdfplumber

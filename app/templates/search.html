@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Documents</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.5.1/github-markdown.min.css">
+    <style>
+        mark {
+            background-color: yellow;
+            padding: 0.2em 0.1em;
+            border-radius: 3px;
+        }
+        #modal-content {
+            font-family: sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-4 relative">
+        <div class="absolute top-4 right-4">
+            <a href="/process" class="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm">文档处理与导入</a>
+        </div>
+
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Document Search</h1>
+        
+        <form id="search-form" class="mb-6">
+            <div class="flex">
+                <input type="text" id="keyword" name="keyword" class="w-full px-4 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter keywords...">
+                <button type="button" onclick="performSearch()" class="bg-blue-600 text-white px-6 py-2 rounded-r-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">Search</button>
+            </div>
+        </form>
+
+        <div id="results-summary" class="text-gray-600 mb-4"></div>
+        <div id="results-container" class="space-y-4"></div>
+        <div id="pagination-container" class="mt-6 flex justify-center"></div>
+    </div>
+
+    <!-- Modal for Markdown Preview -->
+    <div id="preview-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-lg shadow-2xl w-11/12 md:w-3/4 lg:w-2/3 max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h3 id="modal-title" class="text-xl font-semibold">Markdown Preview</h3>
+                <button onclick="closeModal()" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+            </div>
+            <div id="modal-content" class="p-6 overflow-y-auto">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const searchForm = document.getElementById('search-form');
+        const keywordInput = document.getElementById('keyword');
+        const resultsContainer = document.getElementById('results-container');
+        const resultsSummary = document.getElementById('results-summary');
+        const paginationContainer = document.getElementById('pagination-container');
+        const modal = document.getElementById('preview-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalContent = document.getElementById('modal-content');
+
+        // Allow pressing Enter in the input field to trigger a search
+        keywordInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                performSearch();
+            }
+        });
+
+        function performSearch(page = 1) {
+            const keyword = keywordInput.value;
+            
+            fetch(`/api/search?keyword=${encodeURIComponent(keyword)}&page=${page}`)
+                .then(response => response.json())
+                .then(data => {
+                    resultsContainer.innerHTML = '';
+                    if (data.status === 'success') {
+                        resultsSummary.textContent = `Found ${data.data.search_info.total_results} results in ${data.data.search_info.search_time}.`;
+                        
+                        data.data.results.forEach(result => {
+                            const resultEl = document.createElement('div');
+                            resultEl.className = 'bg-white p-4 rounded-lg shadow';
+                            
+                            const fileSize = result.filesize > 1024*1024 ? `${(result.filesize/(1024*1024)).toFixed(2)} MB` : `${(result.filesize/1024).toFixed(2)} KB`;
+                            const modifiedDate = new Date(result.file_modified_time).toLocaleString();
+
+                            resultEl.innerHTML = `
+                                <h3 class="text-lg font-semibold text-blue-600 cursor-pointer hover:underline" onclick="previewMarkdown(${result.id}, '${result.filename}')" title="Click to preview content">
+                                    ${result.filename}
+                                </h3>
+                                <p class="text-sm text-green-700 break-all mt-1">
+                                    <a href="#" onclick="openLocalFile(event, '${result.filepath}')" class="hover:underline" title="Click to open original file">
+                                        ${result.filepath}
+                                    </a>
+                                </p>
+                                <p class="text-sm text-gray-600 mt-2">${result.snippet}</p>
+                                <div class="text-xs text-gray-500 mt-2"><b>Modified:</b> ${modifiedDate} | <b>Size:</b> ${fileSize} | <b>Type:</b> ${result.filetype}</div>
+                            `;
+                            resultsContainer.appendChild(resultEl);
+                        });
+                        renderPagination(data.data.pagination);
+                    } else {
+                        resultsSummary.textContent = 'Search failed.';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    resultsSummary.textContent = 'An error occurred during search.';
+                });
+        }
+
+        function renderPagination(pagination) {
+            paginationContainer.innerHTML = '';
+            if (pagination.total_pages <= 1) return;
+
+            let paginationHTML = '<nav class="flex items-center space-x-2">';
+            paginationHTML += `<a href="#" onclick="${pagination.has_prev ? `performSearch(${pagination.page - 1})` : 'event.preventDefault()'}" class="px-3 py-1 rounded ${pagination.has_prev ? 'bg-white text-gray-700 hover:bg-gray-200' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}">Prev</a>`;
+            for (let i = 1; i <= pagination.total_pages; i++) {
+                paginationHTML += `<a href="#" onclick="performSearch(${i})" class="px-3 py-1 rounded ${i === pagination.page ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-200'}">${i}</a>`;
+            }
+            paginationHTML += `<a href="#" onclick="${pagination.has_next ? `performSearch(${pagination.page + 1})` : 'event.preventDefault()'}" class="px-3 py-1 rounded ${pagination.has_next ? 'bg-white text-gray-700 hover:bg-gray-200' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}">Next</a>`;
+            paginationHTML += '</nav>';
+            paginationContainer.innerHTML = paginationHTML;
+        }
+
+        function previewMarkdown(docId, filename) {
+            modalTitle.textContent = `Preview: ${filename}`;
+            modalContent.innerHTML = '<p class="text-center">Loading...</p>';
+            modal.classList.remove('hidden');
+
+            fetch(`/api/preview/markdown/${docId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        let finalHtml = data.data.rendered_html;
+                        const keyword = keywordInput.value.trim();
+
+                        if (keyword) {
+                            const regex = new RegExp(keyword.replace(/[-\/\\^$*+?.()|[\\]{}]/g, '\\$&'), 'gi');
+                            finalHtml = finalHtml.replace(regex, (match) => `<mark>${match}</mark>`);
+                        }
+                        
+                        modalContent.innerHTML = `<div class="markdown-body">${finalHtml}</div>`;
+                    } else {
+                        modalContent.innerHTML = `<p class="text-red-500">Error: ${data.message}</p>`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Preview Error:', error);
+                    modalContent.innerHTML = '<p class="text-red-500">An error occurred while fetching the preview.</p>';
+                });
+        }
+
+        function openLocalFile(event, filepath) {
+            event.preventDefault();
+            fetch(`/api/open-file?path=${encodeURIComponent(filepath)}`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Open file request sent:', data);
+                    if (data.status !== 'success') {
+                        alert('Could not open file: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Open file error:', error);
+                    alert('An error occurred while trying to open the file.');
+                });
+        }
+
+        function closeModal() {
+            modal.classList.add('hidden');
+            modalContent.innerHTML = '';
+        }
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+    </script>
+</body>
+</html>

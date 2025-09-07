@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block title %}Process Documents{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <h1 class="text-2xl font-bold mb-4">文档处理与导入</h1>
+
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="mb-4">
+            <label for="folder_path" class="block text-sm font-medium text-gray-700">文件夹路径</label>
+            <input type="text" id="folder_path" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+        </div>
+
+        <div class="mb-4">
+            <input type="checkbox" id="recursive" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-offset-0 focus:ring-indigo-200 focus:ring-opacity-50" checked>
+            <label for="recursive" class="ml-2 text-sm text-gray-600">递归扫描子文件夹</label>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+                <label for="date_from" class="block text-sm font-medium text-gray-700">开始日期</label>
+                <input type="date" id="date_from" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+            </div>
+            <div>
+                <label for="date_to" class="block text-sm font-medium text-gray-700">结束日期</label>
+                <input type="date" id="date_to" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <h3 class="text-lg font-medium text-gray-800">文件类型设置</h3>
+            <div id="file-types" class="mt-2 space-y-2"></div>
+        </div>
+
+        <button id="start-scan" class="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700">开始处理</button>
+
+        <div id="progress" class="mt-4 hidden">
+            <div class="w-full bg-gray-200 rounded-full">
+                <div id="progress-bar" class="bg-indigo-600 text-xs font-medium text-blue-100 text-center p-0.5 leading-none rounded-full" style="width: 0%">0%</div>
+            </div>
+            <div id="progress-text" class="text-sm text-gray-600 mt-1"></div>
+        </div>
+
+        <div id="summary" class="mt-4 hidden p-4 bg-gray-50 rounded-lg">
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const fileTypesContainer = document.getElementById('file-types');
+        fetch('/api/config/file-types')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const types = data.data;
+                    for (const category in types) {
+                        if (category.endsWith('_types')) {
+                            const container = document.createElement('div');
+                            const title = document.createElement('h4');
+                            title.className = 'font-semibold';
+                            title.textContent = category.replace(/_/g, ' ').replace('types', ' ');
+                            container.appendChild(title);
+                            types[category].forEach(type => {
+                                const checkbox = document.createElement('input');
+                                checkbox.type = 'checkbox';
+                                checkbox.id = type.ext;
+                                checkbox.value = type.ext;
+                                checkbox.checked = true;
+                                const label = document.createElement('label');
+                                label.htmlFor = type.ext;
+                                label.textContent = ` ${type.name} (.${type.ext})`;
+                                const div = document.createElement('div');
+                                div.appendChild(checkbox);
+                                div.appendChild(label);
+                                container.appendChild(div);
+                            });
+                            fileTypesContainer.appendChild(container);
+                        }
+                    }
+                }
+            });
+
+        document.getElementById('start-scan').addEventListener('click', function() {
+            const folderPath = document.getElementById('folder_path').value;
+            const recursive = document.getElementById('recursive').checked;
+            const dateFrom = document.getElementById('date_from').value;
+            const dateTo = document.getElementById('date_to').value;
+            const selectedTypes = Array.from(document.querySelectorAll('#file-types input[type=checkbox]:checked')).map(cb => cb.value);
+
+            const progress = document.getElementById('progress');
+            const progressBar = document.getElementById('progress-bar');
+            const progressText = document.getElementById('progress-text');
+            const summary = document.getElementById('summary');
+
+            progress.classList.remove('hidden');
+            progressBar.style.width = '0%';
+            progressBar.textContent = '0%';
+            progressText.textContent = 'Starting scan...';
+            summary.classList.add('hidden');
+
+            fetch('/api/scan-folder', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    folder_path: folderPath,
+                    recursive: recursive,
+                    date_from: dateFrom,
+                    date_to: dateTo,
+                    file_types: selectedTypes.join(',')
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                progress.classList.add('hidden');
+                summary.classList.remove('hidden');
+                if (data.status === 'success') {
+                    const scanSummary = data.data.scan_summary;
+                    summary.innerHTML = `
+                        <h3 class="font-bold">Scan Complete</h3>
+                        <p>Total files: ${scanSummary.total_files}</p>
+                        <p>Processed files: ${scanSummary.processed_files}</p>
+                        <p>Skipped files: ${scanSummary.skipped_files}</p>
+                        <p>Error files: ${scanSummary.error_files}</p>
+                        <p>Processing time: ${data.data.processing_time}</p>
+                    `;
+                } else {
+                    summary.innerHTML = `<p class="text-red-500">Error: ${data.message}</p>`;
+                }
+            })
+            .catch(error => {
+                progress.classList.add('hidden');
+                summary.classList.remove('hidden');
+                summary.innerHTML = `<p class="text-red-500">Error: ${error}</p>`;
+            });
+        });
+    });
+</script>
+{% endblock %}
