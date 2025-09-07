@@ -39,7 +39,7 @@ def search_route():
             'filetype': doc.file_type,
             'filesize': doc.file_size,
             'file_modified_time': doc.file_modified_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
-            'snippet': doc.markdown_content[:200] + '...' if doc.markdown_content else '' # Simple snippet
+            'snippet': doc.snippet
         })
 
     return jsonify({
