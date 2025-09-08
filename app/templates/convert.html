@@ -10,7 +10,10 @@
 <div class="container mx-auto p-4">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-3xl font-bold text-gray-800">文档处理与导入</h1>
-        <a href="/search" class="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm">&larr; 返回搜索页面</a>
+        <div>
+            <a href="{{ url_for('main.errors_page') }}" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm mr-4">查看错误记录</a>
+            <a href="{{ url_for('main.search_page') }}" class="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm">搜索页面</a>
+        </div>
     </div>
 
     <div class="bg-white p-6 rounded-lg shadow-md">
