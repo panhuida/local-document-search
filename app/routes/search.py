@@ -9,23 +9,58 @@ import markdown
 
 bp = Blueprint('search', __name__, url_prefix='/api')
 
+def highlight_text(text, keyword):
+    if not text or not keyword:
+        return text
+
+    try:
+        keywords = re.split(r'[\s+]+', keyword)
+        keywords = [k for k in keywords if k]
+
+        if not keywords:
+            return text
+
+        highlighted_text = text
+        for kw in keywords:
+            highlighted_text = re.sub(f'({re.escape(kw)})', r'<mark>\1</mark>', highlighted_text, flags=re.IGNORECASE)
+        
+        return highlighted_text
+    except Exception:
+        return text
+
 def create_highlighted_snippet(content, keyword, length=200):
     if not content or not keyword:
         return (content or '')[:length]
 
     try:
-        # Case-insensitive search for the keyword
-        match = re.search(keyword, content, re.IGNORECASE)
-        if not match:
-            return content[:length] + '...'
+        # Split keyword into individual words
+        keywords = re.split(r'[\s+]+', keyword)
+        keywords = [k for k in keywords if k] # remove empty strings
 
-        start_pos = match.start()
+        if not keywords:
+            return (content or '')[:length]
+
+        # Find the first match to center the snippet
+        first_match = None
+        for kw in keywords:
+            match = re.search(kw, content, re.IGNORECASE)
+            if match:
+                first_match = match
+                break
         
-        # Calculate snippet start and end, trying to center the keyword
-        snippet_start = max(0, start_pos - length // 2)
-        snippet_end = min(len(content), start_pos + len(keyword) + length // 2)
+        if not first_match:
+            # If no match in content, just return the beginning of the content
+            snippet = (content or '')[:length]
+            if len(content) > length:
+                snippet += '...'
+            return snippet
 
-        # Adjust if we are near the beginning or end of the content
+        start_pos = first_match.start()
+        
+        # Calculate snippet start and end
+        snippet_start = max(0, start_pos - length // 2)
+        snippet_end = min(len(content), start_pos + len(keywords[0]) + length // 2)
+
         if snippet_start == 0:
             snippet_end = min(len(content), length)
         if snippet_end == len(content):
@@ -33,15 +68,13 @@ def create_highlighted_snippet(content, keyword, length=200):
 
         snippet = content[snippet_start:snippet_end]
 
-        # Add ellipses if the snippet is not at the start/end of the document
         if snippet_start > 0:
             snippet = "..." + snippet
         if snippet_end < len(content):
             snippet = snippet + "..."
 
-        # Highlight all occurrences of the keyword in the snippet
-        highlighted_snippet = re.sub(f'({re.escape(keyword)})', r'<mark>\1</mark>', snippet, flags=re.IGNORECASE)
-        return highlighted_snippet
+        # Highlight all keywords
+        return highlight_text(snippet, keyword)
 
     except Exception:
         return (content or '')[:length] # Fallback
@@ -53,8 +86,8 @@ def search_route():
     start_time = time.time()
     keyword = request.args.get('keyword')
     logger.info(f"Received search query with keyword: '{keyword}'")
-    search_type = request.args.get('search_type', 'simple')
     sort_by = request.args.get('sort_by', 'relevance')
+    search_type = request.args.get('search_type', 'full_text')
     sort_order = request.args.get('sort_order', 'desc')
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
@@ -65,16 +98,17 @@ def search_route():
     if file_types:
         file_types = file_types.split(',')
 
-    pagination = search_documents(keyword, search_type, sort_by, sort_order, page, per_page, file_types, date_from, date_to)
+    pagination = search_documents(keyword, sort_by, sort_order, page, per_page, file_types, date_from, date_to)
     end_time = time.time()
     search_time = f'{end_time - start_time:.2f}s'
 
     results = []
     for doc in pagination.items:
         snippet = create_highlighted_snippet(doc.markdown_content, keyword)
+        highlighted_filename = highlight_text(doc.file_name, keyword)
         results.append({
             'id': doc.id,
-            'filename': doc.file_name,
+            'filename': highlighted_filename,
             'filepath': doc.file_path,
             'filetype': doc.file_type,
             'filesize': doc.file_size,
