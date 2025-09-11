@@ -113,10 +113,16 @@ def search_route():
     search_time = f'{end_time - start_time:.2f}s'
 
     results = []
-    for doc in pagination.items:
+    for item in pagination.items:
+        # Unpack the document and score based on the search type
+        if search_type == 'trigram' and keyword:
+            doc, score = item
+        else:
+            doc, score = item, None
+
         snippet = create_highlighted_snippet(doc.markdown_content, keyword)
         highlighted_filename = highlight_text(doc.file_name, keyword)
-        results.append({
+        result_item = {
             'id': doc.id,
             'filename': highlighted_filename,
             'filepath': doc.file_path,
@@ -124,7 +130,10 @@ def search_route():
             'filesize': doc.file_size,
             'file_modified_time': doc.file_modified_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
             'snippet': snippet
-        })
+        }
+        if score is not None:
+            result_item['relevance'] = round(score, 3)
+        results.append(result_item)
 
     return jsonify({
         'status': 'success',
