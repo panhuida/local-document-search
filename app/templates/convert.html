@@ -67,23 +67,28 @@
     <!-- Results Card -->
     <div id="results-card" class="bg-white dark:bg-gray-800 shadow-lg dark:shadow-none rounded-xl overflow-hidden hidden">
         <div class="p-6 border-b border-gray-200 dark:border-gray-700">
-            <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Processing Results</h2>
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Processing Log</h2>
         </div>
         <!-- Progress -->
         <div id="progress" class="p-6 hidden">
-            <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full">
-                <div id="progress-bar" class="bg-blue-600 text-xs font-medium text-blue-100 text-center p-0.5 leading-none rounded-full" style="width: 0%">0%</div>
+            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full">
+                <div id="progress-bar" class="bg-blue-600 text-xs font-medium text-blue-100 text-center p-0.5 leading-none rounded-full transition-all duration-500" style="width: 0%">0%</div>
             </div>
-            <div id="progress-text" class="text-sm text-gray-600 dark:text-gray-400 mt-2 text-center"></div>
+            <div id="progress-text" class="text-sm text-gray-600 dark:text-gray-400 mt-2 text-center">Starting...</div>
+        </div>
+        <!-- Log Area -->
+        <div id="log-container" class="p-6 bg-gray-100 dark:bg-gray-900/50 h-96 overflow-y-auto custom-scrollbar hidden">
+            <pre id="log-output" class="text-sm font-mono whitespace-pre-wrap"></pre>
         </div>
         <!-- Summary -->
-        <div id="summary" class="p-6 hidden">
+        <div id="summary" class="p-6 hidden border-t border-gray-200 dark:border-gray-700">
         </div>
     </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // ... (existing file type loading logic) ...
     const fileTypesContainer = document.getElementById('file-types');
     fetch('/api/config/file-types')
         .then(response => response.json())
@@ -139,84 +144,119 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     });
 
+    let eventSource;
+
     document.getElementById('start-scan').addEventListener('click', function() {
+        if (eventSource && eventSource.readyState !== EventSource.CLOSED) {
+            eventSource.close();
+        }
+
         const folderPath = document.getElementById('folder_path').value;
         const recursive = document.getElementById('recursive').checked;
         const dateFrom = document.getElementById('date_from').value;
         const dateTo = document.getElementById('date_to').value;
         const selectedTypes = Array.from(document.querySelectorAll('#file-types input[type=checkbox]:checked')).map(cb => cb.value);
 
+        if (!folderPath) {
+            alert('Please select a folder path.');
+            return;
+        }
+
         const resultsCard = document.getElementById('results-card');
         const progress = document.getElementById('progress');
         const progressBar = document.getElementById('progress-bar');
         const progressText = document.getElementById('progress-text');
+        const logContainer = document.getElementById('log-container');
+        const logOutput = document.getElementById('log-output');
         const summary = document.getElementById('summary');
+        const startButton = document.getElementById('start-scan');
 
         resultsCard.classList.remove('hidden');
         progress.classList.remove('hidden');
+        logContainer.classList.remove('hidden');
         summary.classList.add('hidden');
+        logOutput.innerHTML = '';
         
         progressBar.style.width = '0%';
         progressBar.textContent = '0%';
-        progressText.textContent = 'Starting scan...';
+        progressText.textContent = 'Initializing...';
+        startButton.disabled = true;
+        startButton.textContent = 'Processing...';
 
-        // Simulate progress for better UX
-        let progressValue = 0;
-        progressBar.style.width = '5%';
-        progressBar.textContent = '5%';
-        progressText.textContent = 'Scanning files...';
+        const params = new URLSearchParams({
+            folder_path: folderPath,
+            recursive: recursive,
+            date_from: dateFrom,
+            date_to: dateTo,
+            file_types: selectedTypes.join(',')
+        });
 
+        eventSource = new EventSource(`/api/convert-stream?${params.toString()}`);
 
-        fetch('/api/scan-folder', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                folder_path: folderPath,
-                recursive: recursive,
-                date_from: dateFrom,
-                date_to: dateTo,
-                file_types: selectedTypes.join(',')
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            progress.classList.add('hidden');
-            summary.classList.remove('hidden');
-            if (data.status === 'success') {
-                const scanSummary = data.data.scan_summary;
+        eventSource.onopen = function() {
+            logOutput.innerHTML += `<span class="text-green-400">[INFO]</span> Connection established. Starting process...\n`;
+        };
+
+        eventSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+
+            let colorClass = 'text-gray-400';
+            if (data.level === 'info') colorClass = 'text-blue-400';
+            if (data.level === 'warning') colorClass = 'text-yellow-400';
+            if (data.level === 'error') colorClass = 'text-red-400';
+            if (data.level === 'critical') colorClass = 'text-red-600 font-bold';
+
+            logOutput.innerHTML += `<span class="${colorClass}">[${data.level.toUpperCase()}]</span> ${data.message}\n`;
+            logContainer.scrollTop = logContainer.scrollHeight;
+
+            if (data.stage === 'file_processing' && data.progress) {
+                progressBar.style.width = `${data.progress}%`;
+                progressBar.textContent = `${data.progress}%`;
+                progressText.textContent = `Processing: ${data.current_file}`;
+            }
+
+            if (data.stage === 'done') {
+                progressText.textContent = 'Completed!';
+                progressBar.style.width = `100%`;
+                progressBar.textContent = `100%`;
+                
+                const scanSummary = data.summary;
                 summary.innerHTML = `
+                    <h3 class="text-lg font-semibold mb-4">Final Summary</h3>
                     <div class="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
                         <div>
                             <div class="text-2xl font-bold text-gray-800 dark:text-gray-100">${scanSummary.total_files}</div>
                             <div class="text-sm text-gray-500 dark:text-gray-400">Total Files</div>
                         </div>
                         <div>
-                            <div class="text-2xl font-bold text-green-600">${scanSummary.processed_files}</div>
+                            <div class="text-2xl font-bold text-green-500">${scanSummary.processed_files}</div>
                             <div class="text-sm text-gray-500 dark:text-gray-400">Processed</div>
                         </div>
                         <div>
-                            <div class="text-2xl font-bold text-yellow-600">${scanSummary.skipped_files}</div>
+                            <div class="text-2xl font-bold text-yellow-500">${scanSummary.skipped_files}</div>
                             <div class="text-sm text-gray-500 dark:text-gray-400">Skipped</div>
                         </div>
                         <div>
-                            <div class="text-2xl font-bold text-red-600">${scanSummary.error_files}</div>
+                            <div class="text-2xl font-bold text-red-500">${scanSummary.error_files}</div>
                             <div class="text-sm text-gray-500 dark:text-gray-400">Errors</div>
-                        </div>
-                        <div>
-                            <div class="text-2xl font-bold text-gray-800 dark:text-gray-100">${data.data.processing_time}</div>
-                            <div class="text-sm text-gray-500 dark:text-gray-400">Time Taken</div>
                         </div>
                     </div>
                 `;
-            } else {
-                summary.innerHTML = `<div class="p-4 bg-red-100 text-red-700 rounded-lg"><p><span class="font-bold">Error:</span> ${data.message}</p></div>`;
+                summary.classList.remove('hidden');
+                
+                eventSource.close();
+                startButton.disabled = false;
+                startButton.textContent = 'Start Processing';
             }
-        })
-        .catch(error => {
-            progress.classList.add('hidden');
-            summary.classList.remove('hidden');
-            summary.innerHTML = `<div class="p-4 bg-red-100 text-red-700 rounded-lg"><p><span class="font-bold">Error:</span> ${error}</p></div>`;
-        });
+        };
+
+        eventSource.onerror = function() {
+            logOutput.innerHTML += `<span class="text-red-600 font-bold">[CRITICAL]</span> Connection to server lost. Please check the backend and try again.\n`;
+            logContainer.scrollTop = logContainer.scrollHeight;
+            eventSource.close();
+            startButton.disabled = false;
+            startButton.textContent = 'Start Processing';
+        };
     });
 });
 </script>
