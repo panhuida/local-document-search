@@ -84,7 +84,7 @@ def retry_conversion(doc_id):
             return jsonify({'status': 'error', 'message': f'Retry failed: {content}'})
         
         # Conversion succeeded
-        doc.content = content
+        doc.markdown_content = content
         doc.conversion_type = conversion_type
         doc.status = 'completed'
         doc.error_message = None

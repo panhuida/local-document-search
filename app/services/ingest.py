@@ -180,7 +180,7 @@ def ingest_folder(folder_path, date_from_str, date_to_str, recursive, file_types
                 if existing_doc:
                     existing_doc.file_size = metadata['file_size']
                     existing_doc.file_modified_time = metadata['file_modified_time']
-                    existing_doc.content = content
+                    existing_doc.markdown_content = content
                     existing_doc.conversion_type = conversion_type
                     existing_doc.status = 'completed'
                     existing_doc.error_message = None
@@ -189,7 +189,7 @@ def ingest_folder(folder_path, date_from_str, date_to_str, recursive, file_types
                         file_name=metadata['file_name'], file_type=metadata['file_type'],
                         file_size=metadata['file_size'], file_created_at=metadata['file_created_at'],
                         file_modified_time=metadata['file_modified_time'], file_path=metadata['file_path'],
-                        content=content, conversion_type=conversion_type, status='completed'
+                        markdown_content=content, conversion_type=conversion_type, status='completed'
                     )
                     db.session.add(new_doc)
                 processed_files += 1

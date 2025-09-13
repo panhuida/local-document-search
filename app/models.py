@@ -14,14 +14,14 @@ class Document(db.Model):
 
     id = Column(Integer, primary_key=True)
     file_name = Column(String(200), nullable=False)
-    file_type = Column(String(50))
+    file_type = Column(String(10))
     file_size = Column(BigInteger)
     file_created_at = Column(TIMESTAMP(timezone=True))
     file_modified_time = Column(TIMESTAMP(timezone=True))
     file_path = Column(Text, nullable=False, unique=True)
-    content = Column(Text)
+    markdown_content = Column(Text)
     conversion_type = Column(Integer)  # See ConversionType class
-    status = Column(String(50), nullable=False, default='pending', index=True) # pending, completed, failed
+    status = Column(String(10), nullable=True) # pending, completed, failed
     error_message = Column(Text)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), default=func.now(), onupdate=func.now())

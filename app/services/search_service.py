@@ -27,7 +27,7 @@ def search_documents(keyword, search_type='full_text', sort_by='relevance', sort
             # Use the &@~ operator for web-style search on the content column.
             score_col = literal_column("pgroonga_score(documents)").label("score")
             query = query.with_entities(Document, score_col)
-            query = query.filter(Document.content.op('&@~')(keyword))
+            query = query.filter(Document.markdown_content.op('&@~')(keyword))
         
         elif search_type == 'trigram':
             # NOTE: similarity() functions are not suitable for filtering short keywords in long documents in this environment.
@@ -35,7 +35,7 @@ def search_documents(keyword, search_type='full_text', sort_by='relevance', sort
 
             # We can still calculate a similarity score for ranking the results.
             similarity_score = func.greatest(
-                func.similarity(Document.content, keyword),
+                func.similarity(Document.markdown_content, keyword),
                 func.similarity(Document.file_name, keyword)
             ).label("similarity")
             
@@ -44,7 +44,7 @@ def search_documents(keyword, search_type='full_text', sort_by='relevance', sort
             # Use a case-insensitive LIKE query to find the substring. This is fast with the GIN index.
             search_pattern = f'%{keyword}%'
             query = query.filter(
-                (Document.content.ilike(search_pattern)) |
+                (Document.markdown_content.ilike(search_pattern)) |
                 (Document.file_name.ilike(search_pattern))
             )
 
