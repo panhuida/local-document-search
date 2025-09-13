@@ -9,6 +9,8 @@ def index():
 
 @bp.route('/process')
 def convert_page():
+    # This route is now handled by the 'convert' blueprint.
+    # This is kept for backward compatibility of bookmarks, but should be removed later.
     return render_template('convert.html')
 
 @bp.route('/search')

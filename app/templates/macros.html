@@ -1,0 +1,35 @@
+{# This macro generates pagination links.
+   It automatically preserves existing query parameters.
+#}
+{% macro render_pagination(pagination, endpoint) %}
+  <div class="flex items-center justify-between">
+    <div class="text-sm text-gray-600">
+        显示第 {{ pagination.first }} 到 {{ pagination.last }} 条，共 {{ pagination.total }} 条
+    </div>
+    <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+      {# Previous Page Link #}
+      <a href="{{ url_for(endpoint, page=pagination.prev_num, **request.args) if pagination.has_prev else '#' }}"
+         class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 {% if not pagination.has_prev %}cursor-not-allowed opacity-50{% endif %}">
+        上一页
+      </a>
+
+      {# Page Number Links #}
+      {% for p in pagination.iter_pages() %}
+        {% if p %}
+          <a href="{{ url_for(endpoint, page=p, **request.args) }}"
+             class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 {% if p == pagination.page %}bg-blue-50 border-blue-500 text-blue-600{% endif %}">
+            {{ p }}
+          </a>
+        {% else %}
+          <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">...</span>
+        {% endif %}
+      {% endfor %}
+
+      {# Next Page Link #}
+      <a href="{{ url_for(endpoint, page=pagination.next_num, **request.args) if pagination.has_next else '#' }}"
+         class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 {% if not pagination.has_next %}cursor-not-allowed opacity-50{% endif %}">
+        下一页
+      </a>
+    </nav>
+  </div>
+{% endmacro %}

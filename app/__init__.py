@@ -1,7 +1,7 @@
 from flask import Flask
 from config import Config
 from app.extensions import db, migrate
-from app.routes import convert, search, main
+from app.routes import convert, search, main, cleanup
 
 import logging
 from logging.handlers import RotatingFileHandler
@@ -19,6 +19,7 @@ def create_app(config_class=Config):
     app.register_blueprint(main.bp)
     app.register_blueprint(convert.bp)
     app.register_blueprint(search.bp)
+    app.register_blueprint(cleanup.cleanup_bp)
 
     # 配置日志
     # Forcefully remove all existing handlers to avoid duplicates
