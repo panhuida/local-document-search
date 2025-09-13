@@ -8,7 +8,7 @@
     
     <!-- 区域一: 文件对比 -->
     <div class="p-6 border-b border-gray-200 dark:border-gray-700">
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">1. 文件对比</h2>
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">文件对比</h2>
         <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">输入一个文件夹的绝对路径，找出数据库中多余的记录。</p>
         <form method="GET" action="{{ url_for('cleanup.cleanup_page') }}" class="mt-4">
             <div class="flex items-end gap-2">
@@ -31,7 +31,7 @@
         {% if folder_path %}
             <!-- 筛选表单 -->
             <form method="GET" action="{{ url_for('cleanup.cleanup_page') }}" class="p-6 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
-                <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-3">2. 筛选记录</h3>
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-3">筛选记录</h3>
                 <input type="hidden" name="folder_path" value="{{ folder_path }}">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                     <div>
