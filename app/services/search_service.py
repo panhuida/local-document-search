@@ -2,6 +2,7 @@ import re
 from app.models import Document
 from app.extensions import db
 from sqlalchemy import func, cast, TEXT, literal_column
+import sqlalchemy as sa
 
 def search_documents(keyword, search_type='full_text', sort_by='relevance', sort_order='desc', page=1, per_page=20, file_types=None, date_from=None, date_to=None):
     """搜索文档"""
@@ -23,14 +24,23 @@ def search_documents(keyword, search_type='full_text', sort_by='relevance', sort
             query = query.filter(Document.markdown_content.op('&@~')(keyword))
         
         elif search_type == 'trigram':
-            # Calculate similarity score against content and filename
+            # NOTE: similarity() functions are not suitable for filtering short keywords in long documents in this environment.
+            # Instead, use a LIKE query, which is accelerated by the GIN trigram index, to find all documents containing the keyword.
+
+            # We can still calculate a similarity score for ranking the results.
             similarity_score = func.greatest(
                 func.similarity(Document.markdown_content, keyword),
                 func.similarity(Document.file_name, keyword)
             ).label("similarity")
             
-            # Add the score to the query's selectable entities
             query = query.with_entities(Document, similarity_score)
+
+            # Use a case-insensitive LIKE query to find the substring. This is fast with the GIN index.
+            search_pattern = f'%{keyword}%'
+            query = query.filter(
+                (Document.markdown_content.ilike(search_pattern)) |
+                (Document.file_name.ilike(search_pattern))
+            )
 
     # --- UNIFIED AND RESTRUCTURED SORTING LOGIC ---
     order_by_clause = None
