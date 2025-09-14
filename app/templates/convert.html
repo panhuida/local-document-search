@@ -87,10 +87,18 @@
 </div>
 
 <script>
+    window.AppConfig = {
+        apiEndpoints: {
+            browseFolder: "{{ url_for('convert.browse_folder') }}",
+            convertStream: "{{ url_for('convert.convert_stream_route') }}",
+            configFileTypes: "{{ url_for('search.get_file_types_config') }}"
+        }
+    };
+
 document.addEventListener('DOMContentLoaded', function() {
     // ... (existing file type loading logic) ...
     const fileTypesContainer = document.getElementById('file-types');
-    fetch('/api/config/file-types')
+    fetch(window.AppConfig.apiEndpoints.configFileTypes)
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
@@ -131,7 +139,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
     document.getElementById('browse_button').addEventListener('click', function() {
-        fetch('/api/browse-folder')
+        fetch(window.AppConfig.apiEndpoints.browseFolder)
             .then(response => response.json())
             .then(data => {
                 if (data.folder_path) {
@@ -191,7 +199,7 @@ document.addEventListener('DOMContentLoaded', function() {
             file_types: selectedTypes.join(',')
         });
 
-        eventSource = new EventSource(`/api/convert-stream?${params.toString()}`);
+        eventSource = new EventSource(window.AppConfig.apiEndpoints.convertStream + `?${params.toString()}`);
 
         eventSource.onopen = function() {
             logOutput.innerHTML += `<span class="text-green-400">[INFO]</span> Connection established. Starting process...\n`;

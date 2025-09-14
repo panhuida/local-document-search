@@ -22,7 +22,7 @@ class Config:
 
     # --- Logging Configuration ---
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper() # Default to INFO
-    LOG_BACKUP_COUNT = int(os.environ.get('LOG_BACKUP_COUNT', 30)) # For TimedRotatingFileHandler
+    LOG_BACKUP_COUNT = int(os.environ.get('LOG_BACKUP_COUNT', 3)) # For TimedRotatingFileHandler
 
     FILE_TYPE_CONFIG = {
         # ext: {'category', 'description'}
@@ -62,5 +62,14 @@ class Config:
     SEARCH_DEFAULT_PER_PAGE = 20
     SEARCH_DEFAULT_SORT_BY = 'relevance'
 
-    # Ingestion Configs
+        # Ingestion Configs
     JOPLIN_IMPORT_BATCH_SIZE = 50
+
+    # --- Filesystem Scanner Configuration ---
+    EXCLUDED_DIRS = [
+        '.git', '.vscode', '__pycache__', 'node_modules', '.assets', 
+        'dist', 'build', 'venv'
+    ]
+    EXCLUDED_FILE_EXTENSIONS = [
+        'log', 'tmp', 'bak', 'swo', 'swp', 'pyc'
+    ]
