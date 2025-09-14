@@ -21,29 +21,52 @@ def create_app(config_class=Config):
     app.register_blueprint(search.bp)
     app.register_blueprint(cleanup.cleanup_bp)
 
-    # 配置日志
-    # Forcefully remove all existing handlers to avoid duplicates
-    for handler in app.logger.handlers[:]:
-        app.logger.removeHandler(handler)
-        
-    log_level = app.config.get('LOG_LEVEL', logging.INFO)
-    app.logger.setLevel(log_level)
-
-    # Create a stream handler for console output
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(logging.Formatter(
-        '%(asctime)s %(levelname)s: %(message)s [in %(module)s:%(lineno)d]'))
-    app.logger.addHandler(stream_handler)
-
-    if not app.debug and not app.testing:
-        if not os.path.exists('logs'):
-            os.mkdir('logs')
-        file_handler = RotatingFileHandler('logs/app.log', maxBytes=1024 * 1024 * 10, backupCount=10)
-        file_handler.setFormatter(logging.Formatter(
-            '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
-        file_handler.setLevel(log_level)
-        app.logger.addHandler(file_handler)
+    # 设置日志
+    setup_logging(app)
 
     app.logger.info('Application startup')
 
     return app
+
+def setup_logging(app):
+    # Forcefully remove all existing handlers to avoid duplicates
+    for handler in app.logger.handlers[:]:
+        app.logger.removeHandler(handler)
+        
+    log_level_str = app.config.get('LOG_LEVEL', 'INFO')
+    log_level = getattr(logging, log_level_str.upper(), logging.INFO)
+    app.logger.setLevel(log_level)
+
+    # Create a stream handler for console output (only in development)
+    if app.debug or os.environ.get('FLASK_ENV') == 'development':
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(logging.Formatter(
+            '%(asctime)s | %(name)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s'))
+        app.logger.addHandler(stream_handler)
+
+    # File handler - Timed Rotating
+    if not app.debug and not app.testing:
+        if not os.path.exists('logs'):
+            os.makedirs('logs')
+        
+        file_handler = TimedRotatingFileHandler(
+            filename=os.path.join('logs', 'app.log'),
+            when='midnight',
+            interval=1,
+            backupCount=app.config.get('LOG_BACKUP_COUNT'),
+            encoding='utf-8'
+        )
+        file_handler.setFormatter(logging.Formatter(
+            '%(asctime)s | %(name)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s'))
+        file_handler.setLevel(log_level)
+        app.logger.addHandler(file_handler)
+
+        # Error file handler
+        error_handler = logging.FileHandler(
+            os.path.join('logs', 'errors.log'),
+            encoding='utf-8'
+        )
+        error_handler.setLevel(logging.ERROR)
+        error_handler.setFormatter(logging.Formatter(
+            '%(asctime)s | %(name)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s'))
+        app.logger.addHandler(error_handler)

@@ -19,7 +19,10 @@ class Config:
     SECRET_KEY = os.environ.get('FLASK_SECRET_KEY') or 'you-will-never-guess'
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    LOG_LEVEL = logging.DEBUG if os.environ.get('FLASK_DEBUG') == '1' else logging.INFO
+
+    # --- Logging Configuration ---
+    LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper() # Default to INFO
+    LOG_BACKUP_COUNT = int(os.environ.get('LOG_BACKUP_COUNT', 30)) # For TimedRotatingFileHandler
 
     FILE_TYPE_CONFIG = {
         # ext: {'category', 'description'}
