@@ -4,7 +4,8 @@ import tkinter as tk
 import unicodedata
 from tkinter import filedialog
 from flask import Blueprint, request, jsonify, current_app, Response
-from app.services.ingest import ingest_folder
+from app.services.ingestion_manager import run_local_ingestion
+from app.services.converters import convert_to_markdown
 from app.models import Document
 from app.extensions import db
 
@@ -58,7 +59,7 @@ def convert_stream_route():
     app = current_app._get_current_object()
     def generate_stream(app):
         with app.app_context():
-            for progress_update in ingest_folder(folder_path, date_from, date_to, recursive, file_types):
+            for progress_update in run_local_ingestion(folder_path, date_from, date_to, recursive, file_types):
                 yield f"data: {json.dumps(progress_update)}\n\n"
 
     return Response(generate_stream(app), mimetype='text/event-stream')
@@ -76,9 +77,7 @@ def retry_conversion(doc_id):
         return jsonify({'status': 'error', 'message': 'Document is not in a failed state.'}), 400
 
     try:
-        from app.services.ingest import _convert_to_markdown
-        
-        content, conversion_type = _convert_to_markdown(doc.file_path, doc.file_type)
+        content, conversion_type = convert_to_markdown(doc.file_path, doc.file_type)
 
         if conversion_type is None: # Conversion failed again
             doc.error_message = content # content is the error message
