@@ -4,7 +4,7 @@ import subprocess
 import time
 import re
 from flask import Blueprint, request, jsonify, current_app
-from app.services.search_service import search_documents
+from app.services.search_service import search_documents, SearchParams
 import markdown
 
 bp = Blueprint('search', __name__, url_prefix='/api')
@@ -87,11 +87,11 @@ def search_route():
     
     try:
         keyword = request.args.get('keyword')
-        sort_by = request.args.get('sort_by', 'relevance')
+        sort_by = request.args.get('sort_by', current_app.config['SEARCH_DEFAULT_SORT_BY'])
         search_type = request.args.get('search_type', 'full_text')
         sort_order = request.args.get('sort_order', 'desc')
         page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 20, type=int)
+        per_page = request.args.get('per_page', current_app.config['SEARCH_DEFAULT_PER_PAGE'], type=int)
         file_types = request.args.get('file_types')
         date_from = request.args.get('date_from')
         date_to = request.args.get('date_to')
@@ -105,7 +105,7 @@ def search_route():
         if file_types:
             file_types = file_types.split(',')
 
-        pagination = search_documents(
+        search_params = SearchParams(
             keyword=keyword,
             search_type=search_type,
             sort_by=sort_by,
@@ -116,6 +116,8 @@ def search_route():
             date_from=date_from,
             date_to=date_to
         )
+
+        pagination = search_documents(params=search_params)
         end_time = time.time()
         search_time = f'{end_time - start_time:.2f}s'
 

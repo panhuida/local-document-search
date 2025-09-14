@@ -24,3 +24,15 @@ class Config:
     # Joplin Configuration
     JOPLIN_API_TOKEN = os.environ.get('JOPLIN_API_TOKEN')
     JOPLIN_API_URL = os.environ.get('JOPLIN_API_URL', 'http://localhost:41184')
+
+    # --- Application Logic Constants ---
+    # Data Sources
+    SOURCE_LOCAL_FS = 'local_fs'
+    SOURCE_JOPLIN = 'Joplin'
+
+    # Search Defaults
+    SEARCH_DEFAULT_PER_PAGE = 20
+    SEARCH_DEFAULT_SORT_BY = 'relevance'
+
+    # Ingestion Configs
+    JOPLIN_IMPORT_BATCH_SIZE = 50

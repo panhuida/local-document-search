@@ -16,23 +16,20 @@ from markdownify import markdownify as md
 
 from flask import Flask
 from app import create_app, db
-from app.models import Document, IngestState, ConversionType
+from app.models import Document, IngestState, ConversionType, ConversionType
 from sqlalchemy.exc import SQLAlchemyError
-
-# --- Configuration ---
-JOPLIN_SOURCE = "Joplin"
-JOPLIN_SCOPE_KEY = "Joplin" # Global scope for all Joplin notes
-BATCH_SIZE = 50
 
 class JoplinImporter:
     def __init__(self, app):
         self.app = app
-        self.api_url = app.config.get('JOPLIN_API_URL')
-        self.api_token = app.config.get('JOPLIN_API_TOKEN')
+        self.api_url = app.config['JOPLIN_API_URL']
+        self.api_token = app.config['JOPLIN_API_TOKEN']
         self.logger = app.logger
         self.session = requests.Session()
         self.session.params = {'token': self.api_token}
         self.folders_map = {}
+        self.source_name = app.config['SOURCE_JOPLIN']
+        self.batch_size = app.config['JOPLIN_IMPORT_BATCH_SIZE']
 
     def _api_get(self, endpoint, params=None):
         """Helper for making GET requests to Joplin API."""
@@ -78,9 +75,9 @@ class JoplinImporter:
         with self.app.app_context():
             self.logger.info("--- Starting Joplin Import ---")
             
-            ingest_state = db.session.query(IngestState).filter_by(source=JOPLIN_SOURCE, scope_key=JOPLIN_SCOPE_KEY).first()
+            ingest_state = db.session.query(IngestState).filter_by(source=self.source_name, scope_key=self.source_name).first()
             if not ingest_state:
-                ingest_state = IngestState(source=JOPLIN_SOURCE, scope_key=JOPLIN_SCOPE_KEY)
+                ingest_state = IngestState(source=self.source_name, scope_key=self.source_name)
                 db.session.add(ingest_state)
             
             cursor_time = ingest_state.cursor_updated_at if not full_resync and ingest_state.cursor_updated_at else None
@@ -109,7 +106,7 @@ class JoplinImporter:
                     self.logger.info(f"Fetching page {page} of notes...")
                     params = {
                         'fields': 'id,parent_id,title,body,created_time,updated_time,source_url,markup_language',
-                        'limit': BATCH_SIZE,
+                        'limit': self.batch_size,
                         'page': page,
                         'order_by': 'updated_time',
                         'order_dir': 'ASC'
@@ -174,7 +171,7 @@ class JoplinImporter:
                                 'conversion_type': conversion_type,
                                 'status': 'completed',
                                 'error_message': None,
-                                'source': JOPLIN_SOURCE,
+                                'source': self.source_name,
                                 'source_url': note.get('source_url', '')
                             }
 
@@ -195,8 +192,8 @@ class JoplinImporter:
                             # Optionally save error to document object if it exists/is created
 
                         processed_count += 1
-                        if processed_count % BATCH_SIZE == 0:
-                            self.logger.info(f"Committing batch of {BATCH_SIZE} notes...")
+                        if processed_count % self.batch_size == 0:
+                            self.logger.info(f"Committing batch of {self.batch_size} notes...")
                             db.session.commit()
                     
                     if test_note_ids: # Only run once for test mode

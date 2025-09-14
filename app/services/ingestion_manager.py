@@ -15,9 +15,9 @@ def run_local_ingestion(folder_path, date_from_str, date_to_str, recursive, file
     start_time = datetime.now(timezone.utc)
 
     # --- IngestState Management ---
-    ingest_state = db.session.query(IngestState).filter_by(source='local_fs', scope_key=folder_path).first()
+    ingest_state = db.session.query(IngestState).filter_by(source=current_app.config['SOURCE_LOCAL_FS'], scope_key=folder_path).first()
     if not ingest_state:
-        ingest_state = IngestState(source='local_fs', scope_key=folder_path)
+        ingest_state = IngestState(source=current_app.config['SOURCE_LOCAL_FS'], scope_key=folder_path)
         db.session.add(ingest_state)
     
     ingest_state.last_started_at = start_time
@@ -76,7 +76,7 @@ def run_local_ingestion(folder_path, date_from_str, date_to_str, recursive, file
                         file_name=metadata['file_name'], file_type=metadata['file_type'],
                         file_size=metadata['file_size'], file_created_at=metadata['file_created_at'],
                         file_modified_time=metadata['file_modified_time'], file_path=metadata['file_path'],
-                        status='failed', error_message=error_message, source='local_fs'
+                        status='failed', error_message=error_message, source=current_app.config['SOURCE_LOCAL_FS']
                     )
                     db.session.add(new_doc)
                 yield {'level': 'error', 'message': f"Failed to convert file: {file_path}. Reason: {error_message}", 'stage': 'file_error'}
@@ -93,7 +93,7 @@ def run_local_ingestion(folder_path, date_from_str, date_to_str, recursive, file
                         file_name=metadata['file_name'], file_type=metadata['file_type'],
                         file_size=metadata['file_size'], file_created_at=metadata['file_created_at'],
                         file_modified_time=metadata['file_modified_time'], file_path=metadata['file_path'],
-                        markdown_content=content, conversion_type=conversion_type, status='completed', source='local_fs'
+                        markdown_content=content, conversion_type=conversion_type, status='completed', source=current_app.config['SOURCE_LOCAL_FS']
                     )
                     db.session.add(new_doc)
                 processed_files += 1
