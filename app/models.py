@@ -23,6 +23,8 @@ class Document(db.Model):
     conversion_type = Column(Integer)  # See ConversionType class
     status = Column(String(10), nullable=True) # pending, completed, failed
     error_message = Column(Text)
+    source = Column(String(30), index=True)
+    source_url = Column(Text)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), default=func.now(), onupdate=func.now())
 
@@ -30,6 +32,27 @@ class Document(db.Model):
         Index('idx_documents_file_path', 'file_path', unique=True),
         # Note: PGroonga indexes are created manually via SQL in the migration
         # and are not explicitly defined in the model's __table_args__.
+    )
+
+class IngestState(db.Model):
+    __tablename__ = 'ingest_state'
+
+    id = Column(Integer, primary_key=True)
+    source = Column(String(30), nullable=False)
+    scope_key = Column(Text, nullable=False)
+    last_started_at = Column(TIMESTAMP(timezone=True))
+    last_ended_at = Column(TIMESTAMP(timezone=True))
+    last_error_message = Column(Text)
+    cursor_updated_at = Column(TIMESTAMP(timezone=True))
+    total_files = Column(Integer)
+    processed = Column(Integer)
+    skipped = Column(Integer)
+    errors = Column(Integer)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        Index('idx_ingest_state_source_scope', 'source', 'scope_key', unique=True),
     )
 
 # The ConversionError table is no longer needed as its functionality is merged into the Document table.

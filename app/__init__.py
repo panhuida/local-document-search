@@ -1,11 +1,11 @@
+import os
+import logging
+from logging.handlers import RotatingFileHandler
 from flask import Flask
 from config import Config
 from app.extensions import db, migrate
 from app.routes import convert, search, main, cleanup
 
-import logging
-from logging.handlers import RotatingFileHandler
-import os
 
 def create_app(config_class=Config):
     app = Flask(__name__)

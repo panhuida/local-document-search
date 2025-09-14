@@ -20,3 +20,7 @@ class Config:
     LOG_TO_MARKDOWN_TYPES = os.environ.get('LOG_TO_MARKDOWN_TYPES', 'log').split(',')
     STRUCTURED_TO_MARKDOWN_TYPES = os.environ.get('STRUCTURED_TO_MARKDOWN_TYPES', 'html,htm,pdf,docx,xlsx,pptx').split(',')
     SUPPORTED_FILE_TYPES = os.environ.get('SUPPORTED_FILE_TYPES', 'md,html,htm,pdf,docx,xlsx,pptx,sql,py').split(',')
+
+    # Joplin Configuration
+    JOPLIN_API_TOKEN = os.environ.get('JOPLIN_API_TOKEN')
+    JOPLIN_API_URL = os.environ.get('JOPLIN_API_URL', 'http://localhost:41184')
