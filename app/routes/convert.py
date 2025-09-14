@@ -36,10 +36,12 @@ def convert_stream_route():
 
     # --- Path Normalization ---
     if folder_path:
-        # 规范化路径以匹配数据库格式：NFC Unicode, 使用 / 分隔符
-        # 注意：os.path.abspath 在这里是关键，因为它会返回一个大小写正确的盘符
+        # 1. Normalize to OS-native format (e.g., C:\Users...\ on Windows)
+        # 2. Get absolute path to resolve any relative parts and get correct casing
         abs_path = os.path.abspath(folder_path)
+        # 3. Normalize unicode representation
         nfc_path = unicodedata.normalize('NFC', abs_path)
+        # 4. For consistency in logs and DB, convert to forward slashes
         folder_path = nfc_path.replace('\\', '/')
 
     current_app.logger.info(
