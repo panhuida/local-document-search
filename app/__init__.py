@@ -4,7 +4,7 @@ from logging.handlers import RotatingFileHandler
 from flask import Flask
 from config import Config
 from app.extensions import db, migrate
-from app.routes import convert, search, main, cleanup
+from app.routes import convert, search, main, cleanup, wechat
 
 
 def create_app(config_class=Config):
@@ -20,6 +20,7 @@ def create_app(config_class=Config):
     app.register_blueprint(convert.bp)
     app.register_blueprint(search.bp)
     app.register_blueprint(cleanup.cleanup_bp)
+    app.register_blueprint(wechat.wechat_bp)
 
     # 设置日志
     setup_logging(app)

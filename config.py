@@ -65,6 +65,9 @@ class Config:
     SEARCH_DEFAULT_PER_PAGE = 20
     SEARCH_DEFAULT_SORT_BY = 'relevance'
 
+    # Download path for WeChat articles
+    DOWNLOAD_PATH = os.getenv('DOWNLOAD_PATH', 'downloads')
+
         # Ingestion Configs
     JOPLIN_IMPORT_BATCH_SIZE = 50
 

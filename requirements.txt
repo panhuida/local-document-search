@@ -6,3 +6,8 @@ Flask-Migrate
 markitdown[all]
 Markdown
 requests
+Flask-Cors
+tenacity
+beautifulsoup4
+lxml
+markdownify

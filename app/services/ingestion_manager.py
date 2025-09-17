@@ -1,4 +1,6 @@
 import traceback
+import os
+import json
 from datetime import datetime, timezone
 from flask import current_app
 from app.extensions import db
@@ -57,6 +59,17 @@ def run_local_ingestion(folder_path, date_from_str, date_to_str, recursive, file
 
             yield {'level': 'info', 'message': f"Processing file {i+1}/{total_files}: {metadata['file_name']}", 'stage': 'file_processing', 'progress': progress, 'current_file': metadata['file_name']}
 
+            # --- Read sidecar metadata if it exists ---
+            source_url = None
+            try:
+                meta_path_str = file_path + ".meta.json"
+                if os.path.exists(meta_path_str):
+                    with open(meta_path_str, 'r', encoding='utf-8') as f:
+                        meta_data = json.load(f)
+                        source_url = meta_data.get('source_url')
+            except Exception as e:
+                logger.warning(f"Could not read or parse metadata file for {file_path}: {e}")
+
             existing_doc = Document.query.filter(Document.file_path.ilike(metadata['file_path'])).first()
             if existing_doc and existing_doc.file_modified_time == metadata['file_modified_time']:
                 skipped_files += 1
@@ -76,7 +89,8 @@ def run_local_ingestion(folder_path, date_from_str, date_to_str, recursive, file
                         file_name=metadata['file_name'], file_type=metadata['file_type'],
                         file_size=metadata['file_size'], file_created_at=metadata['file_created_at'],
                         file_modified_time=metadata['file_modified_time'], file_path=metadata['file_path'],
-                        status='failed', error_message=error_message, source=current_app.config['SOURCE_LOCAL_FS']
+                        status='failed', error_message=error_message, source=current_app.config['SOURCE_LOCAL_FS'],
+                        source_url=source_url
                     )
                     db.session.add(new_doc)
                 yield {'level': 'error', 'message': f"Failed to convert file: {file_path}. Reason: {error_message}", 'stage': 'file_error'}
@@ -88,12 +102,14 @@ def run_local_ingestion(folder_path, date_from_str, date_to_str, recursive, file
                     existing_doc.conversion_type = conversion_type
                     existing_doc.status = 'completed'
                     existing_doc.error_message = None
+                    existing_doc.source_url = source_url
                 else:
                     new_doc = Document(
                         file_name=metadata['file_name'], file_type=metadata['file_type'],
                         file_size=metadata['file_size'], file_created_at=metadata['file_created_at'],
                         file_modified_time=metadata['file_modified_time'], file_path=metadata['file_path'],
-                        markdown_content=content, conversion_type=conversion_type, status='completed', source=current_app.config['SOURCE_LOCAL_FS']
+                        markdown_content=content, conversion_type=conversion_type, status='completed', source=current_app.config['SOURCE_LOCAL_FS'],
+                        source_url=source_url
                     )
                     db.session.add(new_doc)
                 processed_files += 1

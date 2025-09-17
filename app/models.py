@@ -67,3 +67,74 @@ class IngestState(db.Model):
 #     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 #     updated_at = Column(TIMESTAMP(timezone=True), default=func.now(), onupdate=func.now())
 
+
+class WechatList(db.Model):
+    """公众号列表"""
+    __tablename__ = 'wechat_list'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True, comment='公众号列表ID')
+    wechat_account_name = Column(String(100), nullable=False, comment='公众号名称')
+    memo = Column(String(200), comment='备注')
+    start_date = Column(db.Date, comment='开始日期')
+    end_date = Column(db.Date, comment='结束日期')
+    fakeid = Column(String(100), comment='公众号唯一标识')
+    token = Column(String(100), comment='Token信息')
+    cookie = Column(Text, comment='Cookie信息')
+    begin = Column(Integer, default=0, comment='起始位置')
+    count = Column(Integer, default=5, comment='采集数量')
+    create_time = Column(TIMESTAMP(timezone=True), server_default=func.now(), comment='创建时间')
+    update_time = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), comment='更新时间')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'wechat_account_name': self.wechat_account_name,
+            'memo': self.memo,
+            'start_date': self.start_date.strftime('%Y-%m-%d') if self.start_date else None,
+            'end_date': self.end_date.strftime('%Y-%m-%d') if self.end_date else None,
+            'fakeid': self.fakeid,
+            'token': self.token,
+            'cookie': self.cookie,
+            'begin': self.begin,
+            'count': self.count,
+            'create_time': self.create_time.strftime('%Y-%m-%d %H:%M:%S') if self.create_time else None,
+            'update_time': self.update_time.strftime('%Y-%m-%d %H:%M:%S') if self.update_time else None
+        }
+
+class WechatArticleList(db.Model):
+    """公众号文章列表"""
+    __tablename__ = 'wechat_article_list'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True, comment='公众号文章列表ID')
+    wechat_list_id = Column(Integer, comment='公众号列表ID')
+    wechat_account_name = Column(String(100), comment='公众号名称')
+    article_id = Column(String(100), comment='文章ID')
+    article_title = Column(String(255), comment='文章标题')
+    article_cover = Column(String(500), comment='文章封面')
+    article_link = Column(String(500), comment='文章链接')
+    article_author_name = Column(String(100), comment='文章作者')
+    article_is_deleted = Column(String(10), comment='文章是否删除')
+    is_downloaded = Column(String(10), default='否', comment='是否已下载')
+    article_create_time = Column(TIMESTAMP(timezone=True), comment='文章创建时间')
+    article_update_time = Column(TIMESTAMP(timezone=True), comment='文章更新时间')
+    create_time = Column(TIMESTAMP(timezone=True), server_default=func.now(), comment='创建时间')
+    update_time = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), comment='更新时间')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'wechat_list_id': self.wechat_list_id,
+            'wechat_account_name': self.wechat_account_name,
+            'article_id': self.article_id,
+            'article_title': self.article_title,
+            'article_cover': self.article_cover,
+            'article_link': self.article_link,
+            'article_author_name': self.article_author_name,
+            'article_is_deleted': self.article_is_deleted,
+            'is_downloaded': self.is_downloaded,
+            'article_create_time': self.article_create_time.strftime('%Y-%m-%d %H:%M:%S') if self.article_create_time else None,
+            'article_update_time': self.article_update_time.strftime('%Y-%m-%d %H:%M:%S') if self.article_update_time else None,
+            'create_time': self.create_time.strftime('%Y-%m-%d %H:%M:%S') if self.create_time else None,
+            'update_time': self.update_time.strftime('%Y-%m-%d %H:%M:%S') if self.update_time else None
+        }
+

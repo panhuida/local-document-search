@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+
+{% block title %}文章列表{% endblock %}
+
+{% block content %}
+<style>
+    .toast {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 1rem 1.5rem;
+        border-radius: 0.5rem;
+        color: white;
+        z-index: 100;
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+        transform: translateY(-20px);
+    }
+    .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    .toast.success { background-color: #28a745; }
+    .toast.error { background-color: #dc3545; }
+</style>
+<div id="toast-container" class="fixed top-5 right-5 z-50"></div>
+
+<div class="px-4 sm:px-0">
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold">文章列表</h1>
+        <div class="flex space-x-2">
+            <button id="download-selected-btn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded disabled:bg-gray-400" disabled>
+                下载选中文章
+            </button>
+        </div>
+    </div>
+
+    <!-- 搜索和筛选 -->
+    <div class="mt-6 p-4 bg-white dark:bg-gray-800 shadow rounded-lg">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div class="md:col-span-2">
+                <label for="search-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300">搜索文章/公众号</label>
+                <input type="text" id="search-input" placeholder="输入关键词..." class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700">
+            </div>
+            <div>
+                <label for="account-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">公众号</label>
+                <select id="account-filter" class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700">
+                    <option value="">所有公众号</option>
+                    <!-- JS动态加载 -->
+                </select>
+            </div>
+            <div>
+                <label for="download-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">是否下载</label>
+                <select id="download-filter" class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700">
+                    <option value="">全部</option>
+                    <option value="是">是</option>
+                    <option value="否">否</option>
+                </select>
+            </div>
+            <div>
+                <button id="filter-btn" class="w-full mt-6 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    查询
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 文章列表 -->
+    <div class="mt-6 bg-white dark:bg-gray-800 shadow overflow-hidden rounded-lg">
+        <table class="min-w-full">
+            <thead class="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-12">
+                        <input type="checkbox" id="select-all-checkbox" class="rounded">
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">文章标题</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">公众号</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">作者</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">发布时间</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">是否下载</th>
+                </tr>
+            </thead>
+            <tbody id="articles-tbody" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                <!-- JS动态加载 -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 分页 -->
+    <div id="pagination-container" class="mt-6 flex justify-between items-center">
+        <!-- JS动态加载 -->
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tbody = document.getElementById('articles-tbody');
+    const searchInput = document.getElementById('search-input');
+    const accountFilter = document.getElementById('account-filter');
+    const filterBtn = document.getElementById('filter-btn');
+    const paginationContainer = document.getElementById('pagination-container');
+    const downloadBtn = document.getElementById('download-selected-btn');
+    const selectAllCheckbox = document.getElementById('select-all-checkbox');
+    let downloadStatusInterval;
+
+    let currentPage = 1;
+    const perPage = 20;
+
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 100);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                container.removeChild(toast);
+            }, 300);
+        }, 3000);
+    }
+
+    async function fetchArticles(page = 1) {
+        currentPage = page;
+        const search = searchInput.value;
+        const accountId = accountFilter.value;
+        const isDownloaded = document.getElementById('download-filter').value;
+        
+        let url = `/wechat/api/articles?page=${page}&per_page=${perPage}`;
+        if (search) url += `&search=${search}`;
+        if (accountId) url += `&account_id=${accountId}`;
+        if (isDownloaded) url += `&is_downloaded=${isDownloaded}`;
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('网络响应错误');
+            const data = await response.json();
+            renderTable(data.articles);
+            renderPagination(data);
+            updateActionButtonsState();
+        } catch (error) {
+            console.error('加载文章列表失败:', error);
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4">加载失败: ${error.message}</td></tr>`;
+        }
+    }
+
+    function renderTable(articles) {
+        tbody.innerHTML = '';
+        if (articles.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">暂无数据</td></tr>';
+            return;
+        }
+        articles.forEach(article => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="px-6 py-4">
+                    <input type="checkbox" class="article-checkbox rounded" data-id="${article.id}">
+                </td>
+                <td class="px-6 py-4 whitespace-normal break-words">
+                    <a href="${article.article_link}" target="_blank" class="text-blue-600 hover:underline">${article.article_title}</a>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">${article.wechat_account_name}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${article.article_author_name || ''}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${article.article_create_time}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${article.is_downloaded || '否'}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function renderPagination(data) {
+        paginationContainer.innerHTML = '';
+        const { total, page, per_page, total_pages } = data;
+
+        if (total === 0) return;
+
+        const startItem = (page - 1) * per_page + 1;
+        const endItem = Math.min(page * per_page, total);
+
+        let html = `<div class="text-sm text-gray-700 dark:text-gray-300">显示 ${startItem} - ${endItem} of ${total} 条</div>`;
+        
+        html += '<div class="flex space-x-1">';
+        html += `<button class="px-3 py-1 rounded ${page === 1 ? 'bg-gray-200 dark:bg-gray-600 cursor-not-allowed' : 'bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'}" ${page === 1 ? 'disabled' : ''} data-page="${page - 1}">上一页</button>`;
+
+        for (let i = 1; i <= total_pages; i++) {
+            if (i === page) {
+                html += `<button class="px-3 py-1 rounded bg-blue-500 text-white" data-page="${i}">${i}</button>`;
+            } else if (i === 1 || i === total_pages || (i >= page - 2 && i <= page + 2)) {
+                html += `<button class="px-3 py-1 rounded bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600" data-page="${i}">${i}</button>`;
+            } else if (i === page - 3 || i === page + 3) {
+                html += `<span class="px-3 py-1">...</span>`;
+            }
+        }
+
+        html += `<button class="px-3 py-1 rounded ${page === total_pages ? 'bg-gray-200 dark:bg-gray-600 cursor-not-allowed' : 'bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'}" ${page === total_pages ? 'disabled' : ''} data-page="${page + 1}">下一页</button>`;
+        html += '</div>';
+
+        paginationContainer.innerHTML = html;
+    }
+
+    async function loadAccountFilter() {
+        try {
+            const response = await fetch('/wechat/api/wechat_list');
+            const accounts = await response.json();
+            accounts.forEach(acc => {
+                const option = document.createElement('option');
+                option.value = acc.id;
+                option.textContent = acc.wechat_account_name;
+                accountFilter.appendChild(option);
+            });
+        } catch (error) {
+            console.error('加载公众号筛选列表失败:', error);
+        }
+    }
+
+    function updateActionButtonsState() {
+        const selected = getSelectedArticleIds();
+        const hasSelection = selected.length > 0;
+        downloadBtn.disabled = !hasSelection;
+    }
+
+    function getSelectedArticleIds() {
+        return Array.from(document.querySelectorAll('.article-checkbox:checked')).map(cb => cb.dataset.id);
+    }
+
+    async function startDownload() {
+        const article_ids = getSelectedArticleIds();
+        if (article_ids.length === 0) {
+            showToast('请先选择要下载的文章', 'error');
+            return;
+        }
+
+        try {
+            const response = await fetch('/wechat/api/articles/download', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ article_ids })
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || '启动下载任务失败');
+            
+            showToast(result.message);
+            pollDownloadStatus();
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+
+    async function pollDownloadStatus() {
+        if (downloadStatusInterval) clearInterval(downloadStatusInterval);
+
+        downloadStatusInterval = setInterval(async () => {
+            try {
+                const response = await fetch('/wechat/api/articles/download/status');
+                const tasks = await response.json();
+                
+                const latestTask = Object.values(tasks).pop();
+                if (latestTask) {
+                    if (latestTask.status === 'running') {
+                        const progress = latestTask.progress || 0;
+                        const total = latestTask.total || 0;
+                        showToast(`下载中... ${progress} / ${total}`, 'success');
+                    } else if (latestTask.status === 'finished') {
+                        showToast(latestTask.message, 'success');
+                        clearInterval(downloadStatusInterval);
+                        fetchArticles(currentPage);
+                    } else if (latestTask.status === 'error') {
+                        showToast(latestTask.message, 'error');
+                        clearInterval(downloadStatusInterval);
+                    }
+                }
+            } catch (error) {
+                console.error('轮询下载状态失败:', error);
+                clearInterval(downloadStatusInterval);
+            }
+        }, 3000);
+    }
+
+
+    filterBtn.addEventListener('click', () => fetchArticles(1));
+    searchInput.addEventListener('keypress', (event) => {
+        if (event.key === 'Enter') fetchArticles(1);
+    });
+
+    paginationContainer.addEventListener('click', (event) => {
+        if (event.target.tagName === 'BUTTON' && event.target.dataset.page) {
+            const page = parseInt(event.target.dataset.page, 10);
+            fetchArticles(page);
+        }
+    });
+
+    selectAllCheckbox.addEventListener('change', (event) => {
+        document.querySelectorAll('.article-checkbox').forEach(checkbox => {
+            checkbox.checked = event.target.checked;
+        });
+        updateActionButtonsState();
+    });
+
+    tbody.addEventListener('change', (event) => {
+        if (event.target.classList.contains('article-checkbox')) {
+            updateActionButtonsState();
+            if (!event.target.checked) {
+                selectAllCheckbox.checked = false;
+            }
+        }
+    });
+
+    downloadBtn.addEventListener('click', startDownload);
+
+    loadAccountFilter();
+    fetchArticles(1);
+});
+</script>
+{% endblock %}
