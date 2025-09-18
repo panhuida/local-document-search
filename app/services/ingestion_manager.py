@@ -70,6 +70,26 @@ def run_local_ingestion(folder_path, date_from_str, date_to_str, recursive, file
             except Exception as e:
                 logger.warning(f"Could not read or parse metadata file for {file_path}: {e}")
 
+            # --- Determine the source based on file path ---
+            source = current_app.config['SOURCE_LOCAL_FS'] # Default source
+            download_path = current_app.config.get('DOWNLOAD_PATH')
+            if download_path:
+                try:
+                    # Normalize paths to handle different OS separators
+                    normalized_download_path = os.path.normpath(download_path)
+                    normalized_file_path = os.path.normpath(file_path)
+
+                    # Check if the file is inside a subdirectory of the download path
+                    if normalized_file_path.startswith(normalized_download_path + os.sep):
+                        relative_path = os.path.relpath(normalized_file_path, normalized_download_path)
+                        path_parts = relative_path.split(os.sep)
+                        # e.g., 'AccountName/article.html' -> path_parts=['AccountName', 'article.html']
+                        if len(path_parts) > 1:
+                            account_name = path_parts[0]
+                            source = f"公众号_{account_name}"
+                except Exception as e:
+                    logger.warning(f"Could not determine source for {file_path} from DOWNLOAD_PATH: {e}")
+
             existing_doc = Document.query.filter(Document.file_path.ilike(metadata['file_path'])).first()
             if existing_doc and existing_doc.file_modified_time == metadata['file_modified_time']:
                 skipped_files += 1
@@ -84,12 +104,13 @@ def run_local_ingestion(folder_path, date_from_str, date_to_str, recursive, file
                 if existing_doc:
                     existing_doc.status = 'failed'
                     existing_doc.error_message = error_message
+                    existing_doc.source = source # Update source even on failure
                 else:
                     new_doc = Document(
                         file_name=metadata['file_name'], file_type=metadata['file_type'],
                         file_size=metadata['file_size'], file_created_at=metadata['file_created_at'],
                         file_modified_time=metadata['file_modified_time'], file_path=metadata['file_path'],
-                        status='failed', error_message=error_message, source=current_app.config['SOURCE_LOCAL_FS'],
+                        status='failed', error_message=error_message, source=source,
                         source_url=source_url
                     )
                     db.session.add(new_doc)
@@ -102,13 +123,14 @@ def run_local_ingestion(folder_path, date_from_str, date_to_str, recursive, file
                     existing_doc.conversion_type = conversion_type
                     existing_doc.status = 'completed'
                     existing_doc.error_message = None
+                    existing_doc.source = source
                     existing_doc.source_url = source_url
                 else:
                     new_doc = Document(
                         file_name=metadata['file_name'], file_type=metadata['file_type'],
                         file_size=metadata['file_size'], file_created_at=metadata['file_created_at'],
                         file_modified_time=metadata['file_modified_time'], file_path=metadata['file_path'],
-                        markdown_content=content, conversion_type=conversion_type, status='completed', source=current_app.config['SOURCE_LOCAL_FS'],
+                        markdown_content=content, conversion_type=conversion_type, status='completed', source=source,
                         source_url=source_url
                     )
                     db.session.add(new_doc)
