@@ -4,6 +4,7 @@ SQLAlchemy
 psycopg2-binary
 Flask-Migrate
 markitdown[all]
+mdit-py-plugins
 Markdown
 requests
 Flask-Cors
@@ -11,3 +12,4 @@ tenacity
 beautifulsoup4
 lxml
 markdownify
+markdown-it-py[linkify]

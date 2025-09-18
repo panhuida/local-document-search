@@ -5,7 +5,7 @@ import time
 import re
 from flask import Blueprint, request, jsonify, current_app
 from app.services.search_service import search_documents, SearchParams
-import markdown
+from markdown_it import MarkdownIt
 
 bp = Blueprint('search', __name__, url_prefix='/api')
 
@@ -207,7 +207,11 @@ def get_file_types_config():
 def get_markdown_preview(document_id):
     from app.models import Document
     doc = Document.query.get_or_404(document_id)
-    rendered_html = markdown.markdown(doc.markdown_content or '')
+    
+    # 使用 markdown-it-py 进行渲染，支持 GFM (GitHub Flavored Markdown)
+    md = MarkdownIt("gfm-like")
+    rendered_html = md.render(doc.markdown_content or '')
+
     return jsonify({
         'status': 'success',
         'data': {
