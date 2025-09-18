@@ -130,10 +130,14 @@ function performSearch(page = 1) {
                             </h3>
                             <div class="text-sm text-gray-700 dark:text-gray-300 mt-2">${result.snippet}</div>
                             <div class="flex items-center justify-between mt-3">
-                                <div class="text-xs text-gray-400 dark:text-gray-500">
-                                    <span><b>Modified:</b> ${modifiedDate}</span> | 
-                                    <span><b>Size:</b> ${fileSize}</span> | 
-                                    <span><b>Type:</b> ${result.filetype}</span>
+                                <div class="text-xs text-gray-400 dark:text-gray-500 flex items-center min-w-0">
+                                    <span class="whitespace-nowrap"><b>Modified:</b> ${modifiedDate}</span>
+                                    <span class="mx-2">|</span>
+                                    <span class="whitespace-nowrap"><b>Size:</b> ${fileSize}</span>
+                                    <span class="mx-2">|</span>
+                                    <span class="whitespace-nowrap"><b>Type:</b> ${result.filetype}</span>
+                                    <span class="mx-2">|</span>
+                                    <span class="truncate" title="${result.filepath}"><b>Path:</b> ${result.filepath}</span>
                                 </div>
                                 <div class="flex items-center space-x-4">
                                     ${sourceUrlLink}

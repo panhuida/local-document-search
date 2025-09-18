@@ -12,6 +12,7 @@ from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_not_excepti
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from markdownify import markdownify as md
+from collections import deque
 
 from app.models import WechatList, WechatArticleList
 from app.extensions import db
@@ -594,9 +595,8 @@ def _download_articles_worker(task_id, article_ids, app_context):
             for folder_path in processed_dirs:
                 try:
                     logger.info(f"开始处理目录: {folder_path}")
-                    # Consume the generator to run the ingestion to completion
-                    for _ in run_local_ingestion(folder_path, None, None, True, 'html'):
-                        pass
+                    # 使用deque高效地完全消耗生成器，确保导入流程被执行
+                    deque(run_local_ingestion(folder_path, None, None, True, 'html'), maxlen=0)
                     logger.info(f"目录处理完成: {folder_path}")
                 except Exception as e:
                     logger.error(f"在后台导入目录 {folder_path} 时发生错误: {e}", exc_info=True)
