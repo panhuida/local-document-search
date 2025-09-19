@@ -7,10 +7,12 @@ from typing import List
 from xml.etree import ElementTree as ET
 from flask import current_app
 from markitdown import MarkItDown
+from .gemini_adapter import build_markitdown_with_gemini
 from app.models import ConversionType
 
-# Initialize markitdown instance
-_md = MarkItDown()
+# Initialize MarkItDown instance.
+# 若设置 GEMINI_API_KEY 则自动使用 Gemini 多模态描述图片，否则为普通实例。
+_md = build_markitdown_with_gemini()
 
 class XMindLoader:
     def __init__(self, file_path: str):
@@ -122,6 +124,30 @@ def convert_to_markdown(file_path, file_type):
                 conversion_type = ConversionType.XMIND_TO_MD
             except Exception as e:
                 return f"XMind conversion failed: {e}", None
+
+        elif file_type_lower in current_app.config.get('IMAGE_TO_MARKDOWN_TYPES', []):
+            try:
+                llm_prompt = os.getenv('GEMINI_PROMPT') or os.getenv('GEMINI_IMAGE_PROMPT')
+                convert_kwargs = {}
+                if llm_prompt:
+                    # 若构建实例时未带 prompt，可在此按需覆盖
+                    convert_kwargs['llm_prompt'] = llm_prompt
+                with open(file_path, 'rb') as f:
+                    # Use MarkItDown to perform OCR / metadata and (optionally) Gemini caption
+                    result = _md.convert(f, **convert_kwargs)
+                
+                # The result.text_content will contain the Markdown from OCR and metadata
+                if not result.text_content or not result.text_content.strip():
+                    # This can happen if the image has no text and no significant metadata.
+                    # Instead of an error, we treat it as a success with minimal content.
+                    current_app.logger.warning(f"Image conversion for {file_path} resulted in empty content. This is acceptable.")
+                    content = f"# {os.path.basename(file_path)}\n\n"
+                else:
+                    content = result.text_content
+
+                conversion_type = ConversionType.IMAGE_TO_MD
+            except Exception as e:
+                return f"Image OCR/metadata extraction failed: {e}", None
 
         elif file_type_lower in current_app.config.get('STRUCTURED_TO_MARKDOWN_TYPES', []):
             try:

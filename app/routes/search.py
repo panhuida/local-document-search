@@ -200,6 +200,7 @@ def get_file_types_config():
             'code_to_markdown_types': create_type_list('CODE_TO_MARKDOWN'),
             'xmind_to_markdown_types': create_type_list('XMIND_TO_MARKDOWN'),
             'structured_to_markdown_types': create_type_list('STRUCTURED_TO_MARKDOWN'),
+            'image_to_markdown_types': create_type_list('IMAGE_TO_MARKDOWN'),
             'conversion_info': {
                 'target_format': 'Markdown',
                 'ai_agent_ready': True,

@@ -9,6 +9,7 @@ class ConversionType:
     CODE_TO_MD = 2
     STRUCTURED_TO_MD = 3
     XMIND_TO_MD = 4
+    IMAGE_TO_MD = 5
 
 class Document(db.Model):
     __tablename__ = 'documents'

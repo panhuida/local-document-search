@@ -14,6 +14,7 @@ class ConversionCategory:
     CODE = 'code'
     STRUCTURED = 'structured'
     XMIND = 'xmind'
+    IMAGE = 'image'
 
 class Config:
     """基础配置类"""
@@ -42,6 +43,11 @@ class Config:
         'xls':  {'category': ConversionCategory.STRUCTURED,  'description': 'Legacy Excel Spreadsheet'},
         'ppt':  {'category': ConversionCategory.STRUCTURED,  'description': 'Legacy PowerPoint Presentation'},
         'xmind':{'category': ConversionCategory.XMIND,      'description': 'Xmind'},
+        'png':  {'category': ConversionCategory.IMAGE,       'description': 'PNG Image'},
+        'jpg':  {'category': ConversionCategory.IMAGE,       'description': 'JPEG Image'},
+        'jpeg': {'category': ConversionCategory.IMAGE,       'description': 'JPEG Image'},
+        'bmp':  {'category': ConversionCategory.IMAGE,       'description': 'Bitmap Image'},
+        'gif':  {'category': ConversionCategory.IMAGE,       'description': 'GIF Image'},
     }
 
     # Dynamically generate file type lists from the single source of truth
@@ -50,6 +56,7 @@ class Config:
     CODE_TO_MARKDOWN_TYPES = [ext for ext, props in FILE_TYPE_CONFIG.items() if props['category'] == ConversionCategory.CODE]
     STRUCTURED_TO_MARKDOWN_TYPES = [ext for ext, props in FILE_TYPE_CONFIG.items() if props['category'] == ConversionCategory.STRUCTURED]
     XMIND_TO_MARKDOWN_TYPES = [ext for ext, props in FILE_TYPE_CONFIG.items() if props['category'] == ConversionCategory.XMIND]
+    IMAGE_TO_MARKDOWN_TYPES = [ext for ext, props in FILE_TYPE_CONFIG.items() if props['category'] == ConversionCategory.IMAGE]
     SUPPORTED_FILE_TYPES = list(FILE_TYPE_CONFIG.keys())
 
     # Joplin Configuration

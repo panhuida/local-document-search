@@ -13,3 +13,4 @@ beautifulsoup4
 lxml
 markdownify
 markdown-it-py[linkify]
+google-genai
