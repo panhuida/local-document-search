@@ -1,12 +1,14 @@
 # 本地文档智能搜索系统
 
-一个基于 Flask 和 PostgreSQL 的本地文档智能搜索 Web 应用。它能自动扫描您指定的本地文件夹或同步 Joplin 笔记，将多种格式的文档（如 Office 全家桶、PDF、代码、日志等）统一转换为 Markdown 格式，并利用 PostgreSQL 的高级索引（PGroonga 全文搜索、Trigram 模糊搜索）为您提供毫秒级的精准、高效的搜索体验。
+> 把“分散在本地硬盘 / Joplin / 微信公众号抓取 / 图片 / 视频 / 思维导图 / Draw.io 图表”的知识统一加工为 *Markdown 语料层*，并提供毫秒级检索、结构化预览与可拓展的多模态增强。
+
+一个基于 **Flask + PostgreSQL** 的轻量级本地知识检索系统：支持多格式自动转换、增量索引、全文 + 模糊搜索、异步导入、会话重连、图片 OCR/语义描述、视频元数据抽取、XMind/Draw.io 解析，以及 Joplin / 微信采集整合。
 
 ## ✨ 主要功能
 
-- **📁 智能文件夹扫描**：递归扫描本地文件夹，可根据文件修改日期、文件类型进行增量或全量索引。
+- **📁 智能文件夹扫描**：递归扫描本地文件夹，可根据修改时间 / 文件类型做增量或全量索引（基于 `IngestState.cursor_updated_at`）。
 - **✍️ Joplin 笔记同步**：通过脚本从本地 Joplin 应用的 API 同步笔记，实现对知识库的全文搜索。
-- **📄 强大的格式转换**：内置 `markitdown`，支持将 `.pdf`, `.docx`, `.pptx`, `.xlsx`, `.html`, `.md`, `.txt` 及各类代码和日志文件自动转换为结构化的 Markdown。（现在 **HTML** 已作为单独的转换类型，并在“文档导入”界面中单独分组，便于在搜索与导入筛选中区分 Office/PDF 等结构化文档）
+- **📄 强大的格式转换**：聚合 `markitdown` + 自定义转换器，支持 `.pdf`, `.docx`, `.pptx`, `.xlsx`, `.html`, `.md`, `.txt`, 常见代码/脚本、XMind、Draw.io、图片（OCR+描述）、视频（元数据占位）。**HTML** 单独分类（区分结构化 Office/PDF）。
 - **🚀 高性能全文搜索**：集成 **PGroonga** 扩展，为文档内容和文件名提供高速、精准的全文搜索能力。
 - **✍️ 模糊与相似度搜索**：利用 **pg_trgm** 扩展，支持文件名和内容的 trigram 模糊匹配，即使有拼写错误也能找到相关结果。
 - **🖥️ 简洁易用的 Web 界面**：
@@ -14,9 +16,9 @@
     - 搜索结果列表会生成包含关键词的**内容摘要**并**高亮**显示。
     - 支持点击文件名预览完整的 Markdown 内容。
     - 支持从搜索结果中直接调用系统默认程序打开本地的原始文件。
- - **🧠 多模态增强**：图片可本地 OCR 或调用 LLM（OpenAI / Gemini）生成语义描述，自动（可配置）插入元数据 Front Matter。
- - **🎬 视频文件占位转换**：提取结构化元数据（时长、分辨率、编码等）为后续字幕/摘要奠定基础。
- - **🗺️ 思维导图与图表**：支持 XMind 与 Draw.io (`.drawio`) 解析为可检索的 Markdown 列表结构。
+- **🧠 多模态增强**：图片 → 本地 OCR / LLM 语义描述（可链式降级 Provider），写入 Front Matter；可扩展视频字幕、关键帧解析。
+- **🎬 视频占位转换**：抽取元数据（ffprobe）形成 Markdown：后续可接入字幕/章节/摘要。
+- **🗺️ 思维导图与图表**：XMind / Draw.io 转 Markdown（页面 + 节点列表），便于结构检索。
 
 ## 🛠️ 技术栈
 
@@ -87,7 +89,7 @@ cp .env.example .env
 flask db upgrade
 ```
 
-## 🚀 如何使用
+## 🚀 快速开始
 
 ### 1. 启动 Web 应用
 在项目根目录下运行：
@@ -96,14 +98,28 @@ python run.py
 ```
 打开浏览器，访问 `http://127.0.0.1:5000`。
 
-> ⚠️ **Stop 按钮需要并发支持**：如果使用单线程开发服务器，SSE 长连接占用唯一线程，`/api/convert/stop` 与 `/api/convert/stop-all` 将无法及时响应，表现为点击无反应。当前 `run.py` 已通过 `threaded=True` 解决。生产部署请使用带多 worker 或线程的 WSGI（如 gunicorn `--workers 2` 或 waitress）。
+> ⚠️ **取消按钮需要并发**：单线程模式下 SSE 长连接会阻塞取消端点；`run.py` 通过 `threaded=True` 解决。生产请使用多 worker / 线程（gunicorn / waitress / uwsgi 等）。
 
-### 2. 导入本地文件夹文档
+### 2. 导入本地文件夹文档（异步 + 可重连）
 -   点击页面上的“文档转换”链接，或直接访问 `/convert`。
 -   在输入框中填入您想要扫描的本地文件夹的**绝对路径**。
 -   点击“开始转换”按钮，程序将开始在后台扫描和处理文件。
 
-#### 2.1 取消（Stop）机制说明（改进版）
+#### 2.1 异步导入机制
+
+当前 `/api/convert-stream` 默认以 **异步后台线程 + 队列** 方式运行：
+
+| 层级 | 组件 | 说明 |
+|------|------|------|
+| 线程 | ingest worker | 后台扫描/转换文件，事件写入 `event_queue` |
+| 队列 | `event_queue` | 普通事件（处理、成功、失败...）|
+| 控制队列 | `control_events` | 取消确认（`cancel_ack`）等优先事件 |
+| SSE | `stream_async_session` | 周期性 flush 队列 + 发送心跳 `debug_state` |
+| 状态 | `INGEST_SESSIONS` | 内存保存 session metadata（folder_path, params, history 等）|
+
+页面刷新 / 离开后重返：`/api/convert/sessions/history` → 回放最近历史（默认保留 1000 条非 debug 事件）→ 继续附加 SSE。
+
+#### 2.2 取消（Stop）协议
 
 在“文档转换”页面启动扫描后，系统会为本次任务分配一个 `session_id` 并通过 **所有** SSE 事件发送到前端。
 
@@ -179,10 +195,10 @@ IMAGE_PROVIDER_CHAIN=openai,google-genai,local
 
 提示：将 `local` 置于链末可在外部 API 不可用时仍回退到本地 OCR（若安装了 Pillow + pytesseract）。
 
-### 4. 搜索文档
+### 5. 搜索文档
 处理完成后，访问主页 (`/`) 或搜索页 (`/search`)，即可查找已处理过的所有文档。
 
-### 5. 微信文章下载与直接入库
+### 6. 微信文章下载与直接入库
 
 公众号文章在下载完成后**立即**执行 HTML -> Markdown 转换并写入 `documents` 表，不再经过二次目录扫描：
 
@@ -196,8 +212,8 @@ IMAGE_PROVIDER_CHAIN=openai,google-genai,local
 python scripts/reprocess_html.py --only-missing
 ```
 
-### 6. 图片 OCR 与 EXIF Front Matter
-### 6.1 日志时间格式统一
+### 7. 图片 OCR 与 EXIF Front Matter
+#### 7.1 日志时间格式统一
 
 应用内部日志与访问日志均已统一为 `YYYY-MM-DD HH:MM:SS` 格式：
 
@@ -238,7 +254,7 @@ ocr_lang: OCR 使用的语言 (由 TESSERACT_LANG 指定, 默认 eng)
 
 未来计划：加入可选配置以关闭 front matter，及图片 caption 缓存机制。
 
-### 6. 视频文件元数据占位转换 (实验性)
+### 8. 视频文件元数据占位转换 (实验性)
 
 当前已对常见视频格式 (`.mp4`, `.mkv`, `.mov`, `.webm`) 支持“元数据 -> Markdown 占位”模式：
 
@@ -276,7 +292,195 @@ file_size_human: 1.18 MB
 可配置项预留（未来）：
 `VIDEO_TRANSCRIPT_PROVIDER`, `VIDEO_ASR_MODEL`, `VIDEO_SCENE_DETECT`, `VIDEO_KEYFRAME_OCR` 等。
 
-### 7. Draw.io 图表转换 (新增)
+### 9. Draw.io 图表转换 (新增)
+
+### 10. 文件类型与转换矩阵
+
+| 分类 | 典型扩展 | ConversionType | 说明 |
+|------|----------|---------------|------|
+| NATIVE | md | DIRECT | 原生 Markdown 直接入库 |
+| PLAIN_TEXT | txt | TEXT_TO_MD | 直接包裹为 Markdown 文本 |
+| CODE | py, sh, sql, ... | CODE_TO_MD | 保留语法块，未来可做语义摘要 |
+| STRUCTURED | pdf, docx, pptx, xlsx, ... | STRUCTURED_TO_MD | 依赖 markitdown 提取结构/文本 |
+| HTML | html, htm | HTML_TO_MD | HTML 单独分类，便于筛选 |
+| XMIND | xmind | XMIND_TO_MD | 结构化节点输出 |
+| DRAWIO | drawio | DRAWIO_TO_MD | 多页面 + 节点列表 |
+| IMAGE | png, jpg, ... | IMAGE_TO_MD | OCR + caption + Front Matter |
+| VIDEO | mp4, mkv, ... | VIDEO_METADATA | 元数据占位，后续可加字幕 |
+
+> 实际支持集合来源：`config.FILE_TYPE_CONFIG` 中的单一真源，可在此集中扩展。
+
+### 11. 架构与数据流（概要）
+
+1. 用户在前端发起导入 → SSE 建立 (`/api/convert-stream?folder_path=...`)
+2. 后端 `start_async_ingestion` 创建 session：
+   - 初始化 `IngestState`
+   - 生成文件列表 `find_files`（时间/类型过滤）
+   - 后台线程逐个转换：
+     - 读取 sidecar `.meta.json`（可含 `source_url`）
+     - 检测是否未变化（`modified_time` + 记录）跳过
+     - 执行分类转换（markitdown / 自定义转换器）
+   - 期间产生事件推入队列
+3. SSE 端周期拉取并推送事件；心跳事件 `debug_state` 包含：索引、队列长度、active_sessions。
+4. 前端 UI：日志区域 + 进度条 + 取消；刷新后自动通过 `/sessions/history` 重建。
+5. 搜索：`/api/search` → PGroonga/pg_trgm 混合 + snippet 高亮 → 预览 Markdown 或打开源文件。
+
+#### 11.1 导入事件流（Mermaid）
+
+```mermaid
+flowchart LR
+    A["前端 /convert 页面\n建立 SSE 连接"] --> B["/api/convert-stream\n(async=true)"]
+    B --> C{启动模式}
+    C -->|异步| D["start_async_ingestion\n创建 session"]
+    D --> E["后台线程 ingest worker"]
+    E --> F["转换器集合\n(markitdown/自定义)"]
+    F --> G[("PostgreSQL\nDocuments / IngestState")]
+    E --> H[["event_queue"]]
+    E --> I[["control_events"]]
+    H --> J["/stream_async_session\n(SSE 推送)"]
+    I --> J
+    J --> K["前端日志/进度 UI"]
+    K --> L{"用户点击 Stop?"}
+    L -->|是| M["/api/convert/stop"]
+    M --> I
+    L -->|否| E
+```
+
+说明：
+* control_events 优先发送取消确认等；
+* history（未在图内单列）用于页面刷新重放；
+* 单页面多会话时 active_sessions 用于调试与 Stop-All。
+
+#### 11.2 搜索执行路径（Mermaid）
+
+```mermaid
+sequenceDiagram
+    participant U as User UI (/search)
+    participant API as /api/search
+    participant SVC as search_service
+    participant DB as PostgreSQL
+    Note over DB: PGroonga + pg_trgm 索引
+    U->>API: GET /api/search?keyword=...
+    API->>SVC: 构造 SearchParams
+    SVC->>DB: 全文 / Trigram 查询
+    DB-->>SVC: 结果(文档+score)
+    SVC->>API: 分页 + 文档
+    API->>U: JSON {results, snippet, highlight}
+    U->>API: GET /api/preview/markdown/:id (可选)
+    API->>DB: 查询 document.markdown_content
+    DB-->>API: Markdown 内容
+    API-->>U: 渲染后 HTML
+```
+
+未来可扩展：
+* 加入向量检索（ANN）侧路；
+* SearchParams 中增加 embedding / rerank 阶段；
+* 结果缓存层（Redis）。
+
+### 12. SSE 事件规范
+
+| 字段 | 类型 | 示例 | 说明 |
+|------|------|------|------|
+| level | string | info/warning/error/critical | 日志级别 |
+| stage | string | scan_start/file_processing/done/... | 生命周期阶段 |
+| session_id | string | 32hex | 会话标识 |
+| message | string | Processing file 3/20: a.pdf | UI 文本 |
+| progress | int | 45 | 百分比（可选）|
+| current_file | string | a.pdf | 当前处理文件名（可选）|
+| summary | object | {processed:..} | 仅 done 时包含 |
+
+常见 stage 列表：`scan_start`, `session_info`, `scan_complete`, `file_processing`, `file_skip`, `file_success`, `file_error`, `cancel_ack`, `cancelled`, `done`, `critical_error`, `debug_state`。
+
+### 13. 取消与重连内部状态
+
+Session 内存结构（示例）：
+```python
+{
+  session_id: {
+    'folder_path': 'E:/docs/A',
+    'params': {...},
+    'event_queue': deque(),
+    'control_events': [],
+    'history': deque(maxlen=1000),
+    'stop': False,
+    'done': False,
+    'mode': 'async'
+  }
+}
+```
+
+### 14. 关键脚本
+
+| 脚本 | 用途 |
+|------|------|
+| `scripts/import_joplin.py` | 增量/全量同步 Joplin 笔记 |
+| `scripts/reindex_fts.py` | 重新（或修复）全文索引（如添加 PGroonga 后）|
+| `scripts/init_db.py` | 初始化数据库（迁移之外的辅助）|
+| `scripts/xmind2md.py` | 独立测试 XMind 转换 |
+| `scripts/import_wechat.py` (若存在) | 微信文章批量处理（或集成于 service）|
+
+### 15. 配置项速览（节选）
+
+| 变量 | 说明 | 默认 |
+|------|------|------|
+| `DATABASE_URL` | PostgreSQL 连接串 | - |
+| `LOG_LEVEL` | 日志等级 | INFO |
+| `LOG_TIME_FORMAT` | 日志时间格式 | `%Y-%m-%d %H:%M:%S` |
+| `DOWNLOAD_PATH` | 微信文章下载根目录 | `downloads` |
+| `IMAGE_CAPTION_PROVIDER` | 图片描述 Provider (`local`/`openai`/`google-genai`) | `google-genai` |
+| `IMAGE_PROVIDER_CHAIN` | Provider 降级链，逗号分隔 | 空 |
+| `ENABLE_IMAGE_FRONT_MATTER` | 是否写入图片 Front Matter | true |
+| `TESSERACT_LANG` | 本地 OCR 语言包 | `chi_sim+eng` |
+| `JOPLIN_API_TOKEN` | Joplin API Token | - |
+| `JOPLIN_API_URL` | Joplin API 基础地址 | `http://localhost:41184` |
+
+> 更多请查看 `config.py`。
+
+### 16. 常见问题 (FAQ)
+
+**Q: 点击 Stop 没反应？**  
+A: 确认运行方式是否带并发（`threaded=True` 或多 worker）。若日志中无 `cancel_ack` 事件，说明取消请求未进入队列。
+
+**Q: 为什么有时取消后还在处理一个大文件？**  
+A: 当前文件内部转换不可中断（同步函数），等待该文件完成才会发送 `cancelled`。可改造成子进程+轮询提前终止。
+
+**Q: 刷新页面后为什么日志能恢复？**  
+A: 使用内存 `history`（非 debug 事件环形缓存）+ 再次附加 SSE 流。
+
+**Q: 可以多目录同时导入吗？**  
+A: 后端仍保留 `/api/convert/batch`（UI 已隐藏），可通过 curl 请求并分别订阅生成的多个 SSE URL。
+
+**Q: 搜索慢？**  
+A: 检查是否启用 PGroonga 扩展；若未安装会退化为普通 LIKE（显著变慢）。
+
+**Q: PGroonga 安装困难？**  
+A: 可先用 pg_trgm 模糊检索 + 基础索引；后续再迁移。
+
+### 17. Roadmap (节选)
+
+- [ ] 会话持久化（重启后恢复）
+- [ ] 事件落库 / WebSocket 模式
+- [ ] 视频字幕 / 章节生成 + OCR 关键帧
+- [ ] 图片 caption 结果缓存与去重
+- [ ] 更细粒度权限（私有目录隔离）
+- [ ] RESTful API 文档自动化 (OpenAPI)
+- [ ] Mermaid / Graph 可视化导出 (XMind / Draw.io)
+- [ ] 多进程任务队列（Celery / RQ）与任务优先级
+
+### 18. 贡献指南 (简要)
+
+1. Fork & 克隆仓库
+2. 创建特性分支：`git checkout -b feat/your-feature`
+3. 运行 `flake8` / 基础测试（未来补充 CI）
+4. 提交 PR 时请描述：动机 / 主要修改 / 回滚方式
+5. 尽量保持转换/搜索行为的幂等性与可回溯性
+
+建议添加：
+> 若引入新文件类型，请：
+> 1. 更新 `config.FILE_TYPE_CONFIG`
+> 2. 在转换服务添加处理逻辑
+> 3. 更新 README “文件类型与转换矩阵”
+> 4. 补充测试样例（放入 `tests/fixtures`）
 
 现已支持将 `.drawio` 文件转换为结构化 Markdown，提取每个页面 (diagram) 中的节点文本。输出格式示例：
 
@@ -349,3 +553,8 @@ flask db upgrade
 ## 📄 许可证
 
 本项目采用 MIT 许可证。
+
+---
+
+如果你觉得该项目有用：欢迎 Star / Issue / PR。  
+也欢迎针对 *异步模型、视频多模态、检索增强* 等路线提出建议。
