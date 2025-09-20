@@ -63,9 +63,14 @@
             </div>
         </div>
         <div class="p-6 bg-gray-50 dark:bg-gray-800/50 text-right">
-            <button id="start-scan" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-600">
-                Start Processing
-            </button>
+            <div class="flex gap-4 justify-end">
+                <button id="start-scan" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-600">
+                    Start Processing
+                </button>
+                <button id="stop-scan" disabled class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-40 disabled:cursor-not-allowed dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-700">
+                    Stop
+                </button>
+            </div>
         </div>
     </div>
 
@@ -169,6 +174,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     let eventSource;
+    const stopBtn = document.getElementById('stop-scan');
 
     document.getElementById('start-scan').addEventListener('click', function() {
         if (eventSource && eventSource.readyState !== EventSource.CLOSED) {
@@ -204,8 +210,9 @@ document.addEventListener('DOMContentLoaded', function() {
         progressBar.style.width = '0%';
         progressBar.textContent = '0%';
         progressText.textContent = 'Initializing...';
-        startButton.disabled = true;
-        startButton.textContent = 'Processing...';
+    startButton.disabled = true;
+    startButton.textContent = 'Processing...';
+    stopBtn.disabled = false;
 
         const params = new URLSearchParams({
             folder_path: folderPath,
@@ -237,6 +244,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 progressBar.style.width = `${data.progress}%`;
                 progressBar.textContent = `${data.progress}%`;
                 progressText.textContent = `Processing: ${data.current_file}`;
+            }
+
+            if (data.stage === 'cancelled') {
+                progressText.textContent = 'Cancelled by user';
+                logOutput.innerHTML += `<span class="text-yellow-400">[INFO]</span> Cancellation acknowledged. Finishing current cycle...\n`;
             }
 
             if (data.stage === 'done') {
@@ -271,6 +283,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 eventSource.close();
                 startButton.disabled = false;
                 startButton.textContent = 'Start Processing';
+                stopBtn.disabled = true;
             }
         };
 
@@ -280,7 +293,27 @@ document.addEventListener('DOMContentLoaded', function() {
             eventSource.close();
             startButton.disabled = false;
             startButton.textContent = 'Start Processing';
+            stopBtn.disabled = true;
         };
+    });
+
+    stopBtn.addEventListener('click', function() {
+        if (!eventSource || eventSource.readyState === EventSource.CLOSED) return;
+        stopBtn.disabled = true;
+        fetch('/api/convert/stop', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                const logOutput = document.getElementById('log-output');
+                if (data.status === 'success') {
+                    logOutput.innerHTML += `<span class="text-yellow-400">[INFO]</span> Stop requested. Waiting for current file to finish...\n`;
+                } else {
+                    logOutput.innerHTML += `<span class="text-red-400">[ERROR]</span> Stop request failed: ${data.message}\n`;
+                }
+            })
+            .catch(err => {
+                const logOutput = document.getElementById('log-output');
+                logOutput.innerHTML += `<span class="text-red-400">[ERROR]</span> Stop request error: ${err}\n`;
+            });
     });
 });
 </script>

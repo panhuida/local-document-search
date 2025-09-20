@@ -4,7 +4,7 @@ import tkinter as tk
 import unicodedata
 from tkinter import filedialog
 from flask import Blueprint, request, jsonify, current_app, Response
-from app.services.ingestion_manager import run_local_ingestion
+from app.services.ingestion_manager import run_local_ingestion, request_cancel_ingestion
 from app.services.converters import convert_to_markdown
 from app.models import Document
 from app.extensions import db
@@ -63,6 +63,16 @@ def convert_stream_route():
                 yield f"data: {json.dumps(progress_update)}\n\n"
 
     return Response(generate_stream(app), mimetype='text/event-stream')
+
+@bp.route('/convert/stop', methods=['POST'])
+def stop_conversion():
+    """Endpoint to request cancellation of current ingestion."""
+    try:
+        request_cancel_ingestion()
+        return jsonify({'status': 'success', 'message': 'Cancellation requested.'})
+    except Exception as e:
+        current_app.logger.error(f"Error requesting cancellation: {e}")
+        return jsonify({'status': 'error', 'message': 'Failed to request cancellation.'}), 500
 
 @bp.route('/retry-conversion/<int:doc_id>', methods=['POST'])
 def retry_conversion(doc_id):

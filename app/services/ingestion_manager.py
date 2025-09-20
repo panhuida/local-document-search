@@ -7,6 +7,16 @@ from app.extensions import db
 from app.models import Document, IngestState
 from app.utils.file_utils import get_file_metadata
 from app.services.filesystem_scanner import find_files
+
+# Global in-module cancellation flag (simple cooperative cancellation)
+_CANCEL_FLAG = { 'stop': False }
+
+def request_cancel_ingestion():
+    """Set the global cancellation flag to request stop."""
+    _CANCEL_FLAG['stop'] = True
+
+def reset_cancel_flag():
+    _CANCEL_FLAG['stop'] = False
 from app.services.converters import convert_to_markdown
 
 def run_local_ingestion(folder_path, date_from_str, date_to_str, recursive, file_types_str):
@@ -15,6 +25,8 @@ def run_local_ingestion(folder_path, date_from_str, date_to_str, recursive, file
     """
     logger = current_app.logger
     start_time = datetime.now(timezone.utc)
+    # Reset cancel flag at the start of a new ingestion session
+    reset_cancel_flag()
 
     # --- IngestState Management ---
     ingest_state = db.session.query(IngestState).filter_by(source=current_app.config['SOURCE_LOCAL_FS'], scope_key=folder_path).first()
@@ -50,6 +62,9 @@ def run_local_ingestion(folder_path, date_from_str, date_to_str, recursive, file
             return
 
         for i, file_path in enumerate(matched_files):
+            if _CANCEL_FLAG.get('stop'):
+                yield {'level': 'warning', 'message': 'Ingestion cancelled by user request.', 'stage': 'cancelled'}
+                break
             progress = int(((i + 1) / total_files) * 100)
             
             metadata = get_file_metadata(file_path)
@@ -139,10 +154,13 @@ def run_local_ingestion(folder_path, date_from_str, date_to_str, recursive, file
             
             db.session.commit()
 
-        ingest_state.cursor_updated_at = start_time
-
-        summary = {'total_files': total_files, 'processed_files': processed_files, 'skipped_files': skipped_files, 'error_files': error_files}
-        yield {'level': 'info', 'message': "All files processed.", 'stage': 'done', 'summary': summary}
+        if not _CANCEL_FLAG.get('stop'):
+            ingest_state.cursor_updated_at = start_time
+            summary = {'total_files': total_files, 'processed_files': processed_files, 'skipped_files': skipped_files, 'error_files': error_files}
+            yield {'level': 'info', 'message': "All files processed.", 'stage': 'done', 'summary': summary}
+        else:
+            summary = {'total_files': total_files, 'processed_files': processed_files, 'skipped_files': skipped_files, 'error_files': error_files}
+            yield {'level': 'warning', 'message': "Processing stopped before completion.", 'stage': 'done', 'summary': summary}
 
     except Exception as e:
         error_msg = f"A critical error occurred: {e}\n{traceback.format_exc()}"
