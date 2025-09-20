@@ -13,7 +13,7 @@
             <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Configure the folder path and filters for document processing.</p>
         </div>
         <div class="p-6 space-y-6">
-            <!-- Folder Path -->
+            <!-- Single Folder Path (legacy single session) -->
             <div>
                 <label for="folder_path" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Folder Path</label>
                 <div class="flex rounded-md shadow-sm">
@@ -26,6 +26,7 @@
                     </button>
                 </div>
             </div>
+
 
             <!-- Options -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -63,12 +64,16 @@
             </div>
         </div>
         <div class="p-6 bg-gray-50 dark:bg-gray-800/50 text-right">
-            <div class="flex gap-4 justify-end">
+            <div class="flex gap-4 justify-end items-center">
+                <div id="session-indicator" class="text-xs text-gray-500 dark:text-gray-400 hidden select-all"></div>
                 <button id="start-scan" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-600">
                     Start Processing
                 </button>
                 <button id="stop-scan" disabled class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-40 disabled:cursor-not-allowed dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-700">
                     Stop
+                </button>
+                <button id="stop-all" disabled class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-700 hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-700 disabled:opacity-40 disabled:cursor-not-allowed dark:bg-red-800 dark:hover:bg-red-900 dark:focus:ring-red-900">
+                    Stop All
                 </button>
             </div>
         </div>
@@ -117,6 +122,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 for (const category in types) {
                     if (category.endsWith('_types')) {
                         const categoryName = category.replace('_types', '').replace(/_/g, ' ');
+                        // 统一格式：将 html_to_markdown_types 显示为 HTML TO MARKDOWN
                         
                         const title = document.createElement('div');
                         title.className = 'col-span-full font-semibold text-gray-600 dark:text-gray-400 text-sm uppercase';
@@ -173,9 +179,109 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     });
 
-    let eventSource;
-    let currentSessionId = null;
+    let eventSource; // single mode
+    let currentSessionId = null; // single mode
+    const activeBatchSessions = new Map(); // sessionId -> {eventSource, elements}
     const stopBtn = document.getElementById('stop-scan');
+    const stopAllBtn = document.getElementById('stop-all');
+    const sessionIndicator = document.getElementById('session-indicator');
+    // Batch UI removed
+
+    // Reconnect to existing async sessions on page load
+    function reconnectExistingSessions() {
+        fetch('/api/convert/sessions/history')
+            .then(r => r.json())
+            .then(data => {
+                if (data.status !== 'success') return;
+                const sessions = data.sessions || [];
+                if (sessions.length === 0) return;
+                const resultsCard = document.getElementById('results-card');
+                resultsCard.classList.remove('hidden');
+                const batchContainerId = 'batch-results-container';
+                let batchContainer = document.getElementById(batchContainerId);
+                if (!batchContainer) {
+                    batchContainer = document.createElement('div');
+                    batchContainer.id = batchContainerId;
+                    batchContainer.className = 'space-y-6 mt-8';
+                    document.querySelector('#results-card').insertAdjacentElement('afterend', batchContainer);
+                }
+                stopAllBtn.disabled = false;
+                sessions.forEach(s => {
+                    // Skip if already connected
+                    if (activeBatchSessions.has(s.session_id)) return;
+                    // Build card
+                    const card = document.createElement('div');
+                    card.className = 'bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700';
+                    const header = document.createElement('div');
+                    header.className = 'px-4 py-2 flex justify-between items-center border-b border-gray-200 dark:border-gray-700';
+                    header.innerHTML = `<div class='text-sm font-semibold truncate max-w-xs' title='${s.folder_path}'>Dir: ${s.folder_path}</div>`;
+                    const actions = document.createElement('div');
+                    const stopBtnSingle = document.createElement('button');
+                    stopBtnSingle.textContent = 'Stop';
+                    stopBtnSingle.className = 'text-xs px-2 py-1 rounded bg-red-500 text-white disabled:opacity-40';
+                    stopBtnSingle.disabled = !!s.done;
+                    actions.appendChild(stopBtnSingle);
+                    header.appendChild(actions);
+                    card.appendChild(header);
+                    const body = document.createElement('div');
+                    body.className = 'p-3';
+                    const logId = `log-reconnect-${s.session_id}`;
+                    body.innerHTML = `
+                      <div class='text-xs text-gray-500 mb-1'>Session: ${s.session_id}${s.done ? ' (done)' : ''}</div>
+                      <div class='h-40 overflow-y-auto bg-gray-50 dark:bg-gray-900/40 rounded p-2 text-xs font-mono whitespace-pre-wrap' id='${logId}'></div>
+                    `;
+                    card.appendChild(body);
+                    batchContainer.appendChild(card);
+                    const logDiv = body.querySelector('#' + logId);
+                    // Replay history
+                    (s.history || []).forEach(evt => {
+                        logDiv.textContent += `[${evt.level}] ${evt.message}\n`;
+                    });
+                    logDiv.scrollTop = logDiv.scrollHeight;
+                    if (!s.done) {
+                        // Reattach SSE stream (need original params)
+                        const params = new URLSearchParams({
+                            folder_path: s.folder_path,
+                            recursive: String(s.params.recursive),
+                            date_from: s.params.date_from || '',
+                            date_to: s.params.date_to || '',
+                            file_types: s.params.file_types || '',
+                            async: 'true'
+                        });
+                        const es = new EventSource(window.AppConfig.apiEndpoints.convertStream + `?${params.toString()}`);
+                        es.onmessage = ev => {
+                            const dataEvt = JSON.parse(ev.data);
+                            if (dataEvt.stage === 'debug_state') return;
+                            logDiv.textContent += `[${dataEvt.level}] ${dataEvt.message}\n`;
+                            logDiv.scrollTop = logDiv.scrollHeight;
+                            if (dataEvt.stage === 'done') {
+                                stopBtnSingle.disabled = true;
+                                es.close();
+                            }
+                        };
+                        es.onerror = () => {
+                            logDiv.textContent += `[CRITICAL] reconnect stream lost\n`;
+                            es.close();
+                        };
+                        activeBatchSessions.set(s.session_id, { eventSource: es, directory: s.folder_path, logDiv, stopBtn: stopBtnSingle });
+                    }
+                    stopBtnSingle.addEventListener('click', () => {
+                        stopBtnSingle.disabled = true;
+                        fetch('/api/convert/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session_id: s.session_id }) })
+                          .then(r=>r.json()).then(resp=>{
+                            if (resp.status==='success') {
+                                logDiv.textContent += `[INFO] stop requested\n`;
+                            } else {
+                                logDiv.textContent += `[ERROR] stop failed: ${resp.message}\n`;
+                            }
+                          }).catch(err=>{
+                            logDiv.textContent += `[ERROR] stop error: ${err}\n`;
+                          });
+                    });
+                });
+            });
+    }
+    reconnectExistingSessions();
 
     document.getElementById('start-scan').addEventListener('click', function() {
         if (eventSource && eventSource.readyState !== EventSource.CLOSED) {
@@ -233,6 +339,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = JSON.parse(event.data);
             if (!currentSessionId && data.session_id) {
                 currentSessionId = data.session_id;
+                sessionIndicator.textContent = `Session: ${currentSessionId}`;
+                sessionIndicator.classList.remove('hidden');
+                stopAllBtn.disabled = false; // At least one session active
+            }
+            // Debug heartbeat events (stage=debug_state) - show but lighter
+            if (data.stage === 'debug_state') {
+                logOutput.innerHTML += `<span class="text-gray-500">[DEBUG]</span> ${data.message}\n`;
+                logContainer.scrollTop = logContainer.scrollHeight;
             }
 
             let colorClass = 'text-gray-400';
@@ -250,9 +364,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 progressText.textContent = `Processing: ${data.current_file}`;
             }
 
+            if (data.stage === 'cancel_ack') {
+                progressText.textContent = '取消请求已收到 / Cancel acknowledged';
+                logOutput.innerHTML += `<span class="text-yellow-400">[INFO]</span> cancel_ack received.\n`;
+            }
+
             if (data.stage === 'cancelled') {
-                progressText.textContent = 'Cancelled by user';
-                logOutput.innerHTML += `<span class="text-yellow-400">[INFO]</span> Cancellation acknowledged. Finishing current cycle...\n`;
+                progressText.textContent = '已取消 / Cancelled';
+                logOutput.innerHTML += `<span class="text-yellow-400">[INFO]</span> cancelled event received.\n`;
             }
 
             if (data.stage === 'done') {
@@ -288,6 +407,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 startButton.disabled = false;
                 startButton.textContent = 'Start Processing';
                 stopBtn.disabled = true;
+                stopAllBtn.disabled = true;
+                sessionIndicator.classList.add('hidden');
+                currentSessionId = null;
             }
         };
 
@@ -320,6 +442,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 logOutput.innerHTML += `<span class="text-red-400">[ERROR]</span> Stop request error: ${err}\n`;
             });
     });
+
+    stopAllBtn.addEventListener('click', function() {
+        stopAllBtn.disabled = true;
+        fetch('/api/convert/stop-all', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                const logOutput = document.getElementById('log-output');
+                if (data.status === 'success') {
+                    logOutput.innerHTML += `<span class="text-yellow-400">[INFO]</span> Stop-All requested. Sessions: ${(data.sessions || []).join(', ')}\n`;
+                } else {
+                    logOutput.innerHTML += `<span class="text-red-400">[ERROR]</span> Stop-All failed: ${data.message}\n`;
+                }
+            })
+            .catch(err => {
+                const logOutput = document.getElementById('log-output');
+                logOutput.innerHTML += `<span class="text-red-400">[ERROR]</span> Stop-All request error: ${err}\n`;
+            });
+    });
+
 });
 </script>
 {% endblock %}

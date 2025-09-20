@@ -1,6 +1,6 @@
 import os
 import logging
-from logging.handlers import RotatingFileHandler
+from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
 from flask import Flask
 from config import Config
 from app.extensions import db, migrate
@@ -39,10 +39,12 @@ def setup_logging(app):
     app.logger.setLevel(log_level)
 
     # Create a stream handler for console output (only in development)
+    time_fmt = app.config.get('LOG_TIME_FORMAT', '%Y-%m-%d %H:%M:%S')
     if app.debug or os.environ.get('FLASK_ENV') == 'development':
         stream_handler = logging.StreamHandler()
         stream_handler.setFormatter(logging.Formatter(
-            '%(asctime)s | %(name)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s'))
+            '%(asctime)s | %(name)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s',
+            datefmt=time_fmt))
         app.logger.addHandler(stream_handler)
 
     # File handler - Timed Rotating
@@ -58,7 +60,8 @@ def setup_logging(app):
             encoding='utf-8'
         )
         file_handler.setFormatter(logging.Formatter(
-            '%(asctime)s | %(name)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s'))
+            '%(asctime)s | %(name)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s',
+            datefmt=time_fmt))
         file_handler.setLevel(log_level)
         app.logger.addHandler(file_handler)
 
@@ -69,5 +72,6 @@ def setup_logging(app):
         )
         error_handler.setLevel(logging.ERROR)
         error_handler.setFormatter(logging.Formatter(
-            '%(asctime)s | %(name)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s'))
+            '%(asctime)s | %(name)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s',
+            datefmt=time_fmt))
         app.logger.addHandler(error_handler)

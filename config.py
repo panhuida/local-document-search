@@ -17,6 +17,7 @@ class ConversionCategory:
     IMAGE = 'image'
     VIDEO = 'video'
     DIAGRAM = 'diagram'
+    HTML = 'html'
 
 class Config:
     """基础配置类"""
@@ -27,6 +28,7 @@ class Config:
     # --- Logging Configuration ---
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper() # Default to INFO
     LOG_BACKUP_COUNT = int(os.environ.get('LOG_BACKUP_COUNT', 3)) # For TimedRotatingFileHandler
+    LOG_TIME_FORMAT = os.environ.get('LOG_TIME_FORMAT', '%Y-%m-%d %H:%M:%S')
 
     FILE_TYPE_CONFIG = {
         # ext: {'category', 'description'}
@@ -35,8 +37,9 @@ class Config:
         'sql':  {'category': ConversionCategory.CODE,        'description': 'SQL Script'},
         'py':   {'category': ConversionCategory.CODE,        'description': 'Python Script'},
         'sh':   {'category': ConversionCategory.CODE,        'description': 'Shell Script'},
-        'html': {'category': ConversionCategory.STRUCTURED,  'description': 'HTML File'},
-        'htm':  {'category': ConversionCategory.STRUCTURED,  'description': 'HTML File'},
+    # HTML 独立分类，便于在导入界面与结构化文档（Office/PDF）区分
+    'html': {'category': ConversionCategory.HTML,        'description': 'HTML File'},
+    'htm':  {'category': ConversionCategory.HTML,        'description': 'HTML File'},
         'pdf':  {'category': ConversionCategory.STRUCTURED,  'description': 'PDF Document'},
         'docx': {'category': ConversionCategory.STRUCTURED,  'description': 'Word Document'},
         'xlsx': {'category': ConversionCategory.STRUCTURED,  'description': 'Excel Spreadsheet'},
@@ -64,6 +67,7 @@ class Config:
     PLAIN_TEXT_TO_MARKDOWN_TYPES = [ext for ext, props in FILE_TYPE_CONFIG.items() if props['category'] == ConversionCategory.PLAIN_TEXT]
     CODE_TO_MARKDOWN_TYPES = [ext for ext, props in FILE_TYPE_CONFIG.items() if props['category'] == ConversionCategory.CODE]
     STRUCTURED_TO_MARKDOWN_TYPES = [ext for ext, props in FILE_TYPE_CONFIG.items() if props['category'] == ConversionCategory.STRUCTURED]
+    HTML_TO_MARKDOWN_TYPES = [ext for ext, props in FILE_TYPE_CONFIG.items() if props['category'] == ConversionCategory.HTML]
     XMIND_TO_MARKDOWN_TYPES = [ext for ext, props in FILE_TYPE_CONFIG.items() if props['category'] == ConversionCategory.XMIND]
     IMAGE_TO_MARKDOWN_TYPES = [ext for ext, props in FILE_TYPE_CONFIG.items() if props['category'] == ConversionCategory.IMAGE]
     VIDEO_TO_MARKDOWN_TYPES = [ext for ext, props in FILE_TYPE_CONFIG.items() if props['category'] == ConversionCategory.VIDEO]

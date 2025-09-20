@@ -212,7 +212,8 @@ def get_file_types_config():
         ConversionType.XMIND_TO_MD: 'XMind Mindmap',
         ConversionType.IMAGE_TO_MD: 'Image (OCR+Caption)',
         ConversionType.VIDEO_METADATA: 'Video Metadata',
-        ConversionType.DRAWIO_TO_MD: 'Draw.io Diagram'
+        ConversionType.DRAWIO_TO_MD: 'Draw.io Diagram',
+        ConversionType.HTML_TO_MD: 'HTML Document',
     }
 
     return jsonify({
@@ -223,6 +224,7 @@ def get_file_types_config():
             'code_to_markdown_types': create_type_list('CODE_TO_MARKDOWN'),
             'xmind_to_markdown_types': create_type_list('XMIND_TO_MARKDOWN'),
             'structured_to_markdown_types': create_type_list('STRUCTURED_TO_MARKDOWN'),
+            'html_to_markdown_types': create_type_list('HTML_TO_MARKDOWN'),
             'image_to_markdown_types': create_type_list('IMAGE_TO_MARKDOWN'),
             'video_to_markdown_types': create_type_list('VIDEO_TO_MARKDOWN'),
             'drawio_to_markdown_types': create_type_list('DRAWIO_TO_MARKDOWN'),

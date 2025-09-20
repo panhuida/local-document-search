@@ -19,6 +19,8 @@ from app.extensions import db
 from threading import Thread
 from config import Config
 from app.services.ingestion_manager import run_local_ingestion
+from app.services.converters import convert_to_markdown
+from app.models import Document, ConversionType
 
 logger = logging.getLogger(__name__)
 
@@ -557,6 +559,66 @@ def _download_articles_worker(task_id, article_ids, app_context):
         completed_count = 0
         processed_dirs = set()
 
+        def _convert_and_upsert_document(html_path: Path, account_name: str, source_url: str):
+            """直接对刚下载的 HTML 文件执行转换并写入 / 更新 Document 表，避免二次扫描。
+
+            - 如果文件已存在且修改时间未变：跳过（但若之前失败可重试）。
+            - 若转换失败：写入/更新为 failed 状态，保留 error_message。
+            - 成功：写入 markdown_content, conversion_type=HTML_TO_MD。
+            """
+            try:
+                # 获取文件元数据
+                from app.utils.file_utils import get_file_metadata
+                meta = get_file_metadata(str(html_path))
+                if not meta:
+                    logger.warning(f"[WeChatDirectIngest] 无法获取文件元数据: {html_path}")
+                    return
+
+                existing = Document.query.filter(Document.file_path.ilike(meta['file_path'])).first()
+                # 若存在且mtime一致且status=completed，直接跳过
+                if existing and existing.file_modified_time == meta['file_modified_time'] and existing.status == 'completed':
+                    logger.debug(f"[WeChatDirectIngest] 跳过未变文件: {html_path}")
+                    return
+
+                result = convert_to_markdown(meta['file_path'], meta['file_type'])
+                if not result.success:
+                    if existing:
+                        existing.status = 'failed'
+                        existing.error_message = result.error
+                        existing.source = f"公众号_{account_name}"
+                        existing.source_url = source_url
+                    else:
+                        db.session.add(Document(
+                            file_name=meta['file_name'], file_type=meta['file_type'], file_size=meta['file_size'],
+                            file_created_at=meta['file_created_at'], file_modified_time=meta['file_modified_time'],
+                            file_path=meta['file_path'], status='failed', error_message=result.error,
+                            source=f"公众号_{account_name}", source_url=source_url
+                        ))
+                    logger.error(f"[WeChatDirectIngest] 转换失败: {html_path} -> {result.error}")
+                else:
+                    if existing:
+                        existing.file_size = meta['file_size']
+                        existing.file_modified_time = meta['file_modified_time']
+                        existing.markdown_content = result.content
+                        existing.conversion_type = result.conversion_type
+                        existing.status = 'completed'
+                        existing.error_message = None
+                        existing.source = f"公众号_{account_name}"
+                        existing.source_url = source_url
+                    else:
+                        db.session.add(Document(
+                            file_name=meta['file_name'], file_type=meta['file_type'], file_size=meta['file_size'],
+                            file_created_at=meta['file_created_at'], file_modified_time=meta['file_modified_time'],
+                            file_path=meta['file_path'], markdown_content=result.content,
+                            conversion_type=result.conversion_type, status='completed',
+                            source=f"公众号_{account_name}", source_url=source_url
+                        ))
+                    logger.info(f"[WeChatDirectIngest] 转换成功: {html_path}")
+                db.session.commit()
+            except Exception as e:
+                logger.error(f"[WeChatDirectIngest] 处理 {html_path} 发生异常: {e}", exc_info=True)
+                db.session.rollback()
+
         for i, article_id in enumerate(article_ids):
             try:
                 article = db.session.query(WechatArticleList).get(article_id)
@@ -577,6 +639,13 @@ def _download_articles_worker(task_id, article_ids, app_context):
                     # 更新下载状态
                     article.is_downloaded = '是'
                     db.session.commit()
+                    # 直接转换刚下载的HTML
+                    base_filename = _sanitize_filename(article.article_title)
+                    html_path = article_download_dir / f"{base_filename}.html"
+                    if html_path.exists():
+                        _convert_and_upsert_document(html_path, account_name, article.article_link)
+                    else:
+                        logger.warning(f"[WeChatDirectIngest] 期望的HTML文件不存在: {html_path}")
 
             except Exception as e:
                 logger.error(f"下载文章ID {article_id} 时发生严重错误: {e}")
@@ -589,17 +658,7 @@ def _download_articles_worker(task_id, article_ids, app_context):
         download_tasks[task_id]['message'] = f"下载完成！成功 {completed_count} 篇，失败 {len(article_ids) - completed_count} 篇。开始后台入库处理..."
         logger.info(f"下载任务 {task_id} 完成。")
 
-        # --- 触发导入流程 ---
-        if processed_dirs:
-            logger.info(f"下载完成，开始对以下目录进行文件导入: {processed_dirs}")
-            for folder_path in processed_dirs:
-                try:
-                    logger.info(f"开始处理目录: {folder_path}")
-                    # 使用deque高效地完全消耗生成器，确保导入流程被执行
-                    deque(run_local_ingestion(folder_path, None, None, True, 'html'), maxlen=0)
-                    logger.info(f"目录处理完成: {folder_path}")
-                except Exception as e:
-                    logger.error(f"在后台导入目录 {folder_path} 时发生错误: {e}", exc_info=True)
+        # 不再触发目录级二次扫描导入，已在下载时直接转换
         
         db.session.remove()
 

@@ -70,7 +70,9 @@ def _convert_structured(path: str, file_type: str) -> ConversionResult:
             result = structured_md.convert(f)
         if not result.text_content or not result.text_content.strip():
             return ConversionResult(False, None, None, error=f"Empty structured conversion for {path}", file_path=path, file_type=file_type)
-        return ConversionResult(True, result.text_content, ConversionType.STRUCTURED_TO_MD, file_path=path, file_type=file_type).sanitized()
+        # If file is html/htm assign new HTML_TO_MD conversion type
+        ctype = ConversionType.HTML_TO_MD if file_type.lower() in ('html','htm') else ConversionType.STRUCTURED_TO_MD
+        return ConversionResult(True, result.text_content, ctype, file_path=path, file_type=file_type).sanitized()
     except Exception as e:
         return ConversionResult(False, None, None, error=f"Structured conversion failed: {e}", file_path=path, file_type=file_type)
 
@@ -86,6 +88,7 @@ def _bootstrap_registry():
         (cfg.get('IMAGE_TO_MARKDOWN_TYPES', []), _convert_image),
         (cfg.get('VIDEO_TO_MARKDOWN_TYPES', []), _convert_video),
         (cfg.get('DRAWIO_TO_MARKDOWN_TYPES', []), _convert_drawio),
+        (cfg.get('HTML_TO_MARKDOWN_TYPES', []), _convert_structured),  # 独立HTML分类
         (cfg.get('STRUCTURED_TO_MARKDOWN_TYPES', []), _convert_structured),
     ]
     for exts, handler in mapping:
@@ -103,6 +106,7 @@ def convert_to_markdown(file_path: str, file_type: str) -> ConversionResult:
             _BOOTSTRAPPED = True
         handler = registry.get_handler(file_type)
         if not handler:
+            current_app.logger.warning(f"[ConverterDispatch] No handler for file_type='{file_type}'. Registered keys={list(registry._handlers.keys())}")
             return ConversionResult(False, None, None, error=f"Unsupported file type: {file_type}", file_path=file_path, file_type=file_type)
         return handler(file_path, file_type)
     except Exception as e:

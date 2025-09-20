@@ -12,6 +12,7 @@ class ConversionType:
     IMAGE_TO_MD = 5
     VIDEO_METADATA = 6
     DRAWIO_TO_MD = 7
+    HTML_TO_MD = 8  # New: standalone HTML conversion
 
 class Document(db.Model):
     __tablename__ = 'documents'

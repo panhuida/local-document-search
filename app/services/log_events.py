@@ -8,6 +8,7 @@ class LogEvent(str, Enum):
     FILE_SKIP = "file_skip"
     FILE_SUCCESS = "file_success"
     FILE_ERROR = "file_error"
+    CANCEL_ACK = "cancel_ack"  # 新增：收到取消请求立即反馈（早于正式cancelled终止事件）
     CANCELLED = "cancelled"
     DONE = "done"
     CRITICAL_ERROR = "critical_error"
