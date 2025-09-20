@@ -22,6 +22,7 @@ class SearchParams:
     date_from: Optional[str] = None
     date_to: Optional[str] = None
     source: Optional[str] = None
+    conversion_types: Optional[List[int]] = None
 
 def search_documents(params: SearchParams):
     """搜索文档"""
@@ -33,6 +34,9 @@ def search_documents(params: SearchParams):
 
     if params.file_types:
         query = query.filter(Document.file_type.in_(params.file_types))
+
+    if params.conversion_types:
+        query = query.filter(Document.conversion_type.in_(params.conversion_types))
 
     if params.date_from:
         query = query.filter(Document.file_modified_time >= params.date_from)

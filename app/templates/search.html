@@ -8,7 +8,7 @@
     <div class="p-6 border-b border-gray-200 dark:border-gray-700">
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Document Search</h1>
         <form id="search-form" class="mt-4">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
                 <div class="relative flex-grow">
                     <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
                         <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
@@ -17,6 +17,9 @@
                     </div>
                     <input type="search" id="keyword" name="keyword" class="block w-full p-4 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Enter keywords and press Enter...">
                 </div>
+                <select id="conversion_type_filter" name="conversion_type_filter" class="p-4 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+                    <option value="" selected>All Conversion Types</option>
+                </select>
                 <select id="source_filter" name="source_filter" class="p-4 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
                     <option value="" selected>All Sources</option>
                 </select>
@@ -108,6 +111,7 @@
 const searchForm = document.getElementById('search-form');
 const keywordInput = document.getElementById('keyword');
 const sourceFilterSelect = document.getElementById('source_filter');
+const conversionTypeFilter = document.getElementById('conversion_type_filter');
 const searchTypeSelect = document.getElementById('search_type');
 const resultsContainer = document.getElementById('results-container');
 const resultsSummary = document.getElementById('results-summary');
@@ -117,21 +121,37 @@ const modalTitle = document.getElementById('modal-title');
 const modalContent = document.getElementById('modal-content');
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Load sources
     fetch('/api/sources')
-        .then(response => response.json())
+        .then(r => r.json())
         .then(data => {
             if (data.status === 'success') {
                 data.data.forEach(source => {
-                    const option = document.createElement('option');
-                    option.value = source;
-                    option.textContent = source;
-                    sourceFilterSelect.appendChild(option);
+                    const opt = document.createElement('option');
+                    opt.value = source;
+                    opt.textContent = source;
+                    sourceFilterSelect.appendChild(opt);
                 });
-            } else {
-                console.error('Failed to load sources:', data.message);
             }
-        })
-        .catch(error => console.error('Error fetching sources:', error));
+        }).catch(e => console.error('Error fetching sources:', e));
+
+    // Load conversion type mapping
+    const conversionTypeMap = {
+        0: 'DIRECT',
+        1: 'TEXT_TO_MD',
+        2: 'CODE_TO_MD',
+        3: 'STRUCTURED_TO_MD',
+        4: 'XMIND_TO_MD',
+        5: 'IMAGE_TO_MD',
+        6: 'VIDEO_METADATA',
+        7: 'DRAWIO_TO_MD'
+    };
+    Object.entries(conversionTypeMap).forEach(([val,label]) => {
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = label;
+        conversionTypeFilter.appendChild(opt);
+    });
 });
 
 keywordInput.addEventListener('keydown', function(e) {
@@ -145,6 +165,7 @@ function performSearch(page = 1) {
     const keyword = keywordInput.value;
     const searchType = searchTypeSelect.value;
     const source = sourceFilterSelect.value;
+    const conversionType = conversionTypeFilter.value;
     if (!keyword) {
         resultsSummary.textContent = 'Please enter a keyword to search.';
         resultsContainer.innerHTML = `<div class="p-12 text-center text-gray-500 dark:text-gray-400">Use the search bar above to find documents.</div>`;
@@ -156,9 +177,8 @@ function performSearch(page = 1) {
     resultsContainer.innerHTML = `<div class="p-12 text-center text-gray-500 dark:text-gray-400">Loading results...</div>`;
 
     let apiUrl = `/api/search?keyword=${encodeURIComponent(keyword)}&search_type=${searchType}&page=${page}`;
-    if (source) {
-        apiUrl += `&source=${encodeURIComponent(source)}`;
-    }
+    if (source) apiUrl += `&source=${encodeURIComponent(source)}`;
+    if (conversionType) apiUrl += `&conversion_types=${encodeURIComponent(conversionType)}`;
 
     fetch(apiUrl)
         .then(response => response.json())

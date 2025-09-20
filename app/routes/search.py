@@ -94,6 +94,7 @@ def search_route():
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', current_app.config['SEARCH_DEFAULT_PER_PAGE'], type=int)
         file_types = request.args.get('file_types')
+        conversion_types_param = request.args.get('conversion_types')  # comma-separated ints
         date_from = request.args.get('date_from')
         date_to = request.args.get('date_to')
         source = request.args.get('source')
@@ -107,6 +108,12 @@ def search_route():
 
         if file_types:
             file_types = file_types.split(',')
+        conversion_types = None
+        if conversion_types_param:
+            try:
+                conversion_types = [int(x) for x in conversion_types_param.split(',') if x.strip().isdigit()]
+            except Exception:
+                conversion_types = None
 
         search_params = SearchParams(
             keyword=keyword,
@@ -118,7 +125,8 @@ def search_route():
             file_types=file_types,
             date_from=date_from,
             date_to=date_to,
-            source=source
+            source=source,
+            conversion_types=conversion_types
         )
 
         pagination = search_documents(params=search_params)
