@@ -118,6 +118,32 @@ python run.py
 ### 4. 搜索文档
 处理完成后，访问主页 (`/`) 或搜索页 (`/search`)，即可查找已处理过的所有文档。
 
+### 5. 图片 OCR 与 EXIF Front Matter
+
+当环境变量 `IMAGE_CAPTION_PROVIDER=local` 时，系统使用 `pytesseract` 对图片执行本地 OCR，并在生成的 Markdown 顶部插入一个 YAML Front Matter 区块，包含：
+
+```
+---
+source_file: 原始文件名
+provider: local-ocr
+hash_sha256: 文件内容 SHA256
+file_size: 字节大小
+modified_time: 文件修改时间 (ISO8601)
+exif: 可能包含 DateTimeOriginal / Model / Make / LensModel / FNumber / ExposureTime / ISOSpeedRatings / FocalLength / Orientation / Software / GPSInfo / Width / Height / Mode / Format 等字段
+ocr_lang: OCR 使用的语言 (由 TESSERACT_LANG 指定, 默认 eng)
+---
+# 文件名
+<OCR 识别出的正文>
+```
+
+说明：
+- 若图片无 EXIF 或部分字段缺失，对应键会被省略或 `exif: {}`。
+- 该 Front Matter 旨在支持后续扩展（如缓存、溯源、检索过滤）。
+- 切换到 `IMAGE_CAPTION_PROVIDER=openai` 或 `google-genai` 时，将使用 LLM 生成更语义化的图像描述；此模式下暂不添加上述 Front Matter（后续可统一）。
+- 设置 `TESSERACT_LANG=chi_sim` 可提高中文图片识别质量（前提：系统已安装对应语言包）。
+
+未来计划：加入可选配置以关闭 front matter，及图片 caption 缓存机制。
+
 ## 🏗️ 项目结构
 
 ```

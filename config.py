@@ -86,3 +86,15 @@ class Config:
     EXCLUDED_FILE_EXTENSIONS = [
         'log', 'tmp', 'bak', 'swo', 'swp', 'pyc'
     ]
+
+    # --- Image Caption Provider Configuration ---
+    # Options: local | openai | google-genai
+    IMAGE_CAPTION_PROVIDER = os.environ.get('IMAGE_CAPTION_PROVIDER', 'google-genai').lower()
+    # Local OCR language (for pytesseract); can be overridden by env TESSERACT_LANG
+    TESSERACT_LANG = os.environ.get('TESSERACT_LANG', 'chi_sim+eng')
+    # OpenAI model override
+    OPENAI_IMAGE_MODEL = os.environ.get('OPENAI_IMAGE_MODEL', 'gpt-5-mini')
+    # Gemini model override
+    GEMINI_IMAGE_MODEL = os.environ.get('GEMINI_IMAGE_MODEL', os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash'))
+    # Whether to include YAML front matter for image conversions (local OCR now, future: all providers)
+    ENABLE_IMAGE_FRONT_MATTER = os.environ.get('ENABLE_IMAGE_FRONT_MATTER', 'true').lower() in ('1', 'true', 'yes', 'on')

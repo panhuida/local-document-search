@@ -14,3 +14,6 @@ lxml
 markdownify
 markdown-it-py[linkify]
 google-genai
+pytesseract
+pillow
+openai
