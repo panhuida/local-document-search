@@ -11,6 +11,7 @@ class ConversionType:
     XMIND_TO_MD = 4
     IMAGE_TO_MD = 5
     VIDEO_METADATA = 6
+    DRAWIO_TO_MD = 7
 
 class Document(db.Model):
     __tablename__ = 'documents'

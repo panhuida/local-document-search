@@ -16,6 +16,7 @@ class ConversionCategory:
     XMIND = 'xmind'
     IMAGE = 'image'
     VIDEO = 'video'
+    DIAGRAM = 'diagram'
 
 class Config:
     """基础配置类"""
@@ -54,6 +55,8 @@ class Config:
         'mkv':  {'category': ConversionCategory.VIDEO,       'description': 'Matroska Video'},
         'mov':  {'category': ConversionCategory.VIDEO,       'description': 'QuickTime Video'},
         'webm': {'category': ConversionCategory.VIDEO,       'description': 'WebM Video'},
+        # Diagram
+        'drawio': {'category': ConversionCategory.DIAGRAM,    'description': 'Draw.io Diagram'},
     }
 
     # Dynamically generate file type lists from the single source of truth
@@ -64,6 +67,7 @@ class Config:
     XMIND_TO_MARKDOWN_TYPES = [ext for ext, props in FILE_TYPE_CONFIG.items() if props['category'] == ConversionCategory.XMIND]
     IMAGE_TO_MARKDOWN_TYPES = [ext for ext, props in FILE_TYPE_CONFIG.items() if props['category'] == ConversionCategory.IMAGE]
     VIDEO_TO_MARKDOWN_TYPES = [ext for ext, props in FILE_TYPE_CONFIG.items() if props['category'] == ConversionCategory.VIDEO]
+    DRAWIO_TO_MARKDOWN_TYPES = [ext for ext, props in FILE_TYPE_CONFIG.items() if props['category'] == ConversionCategory.DIAGRAM]
     SUPPORTED_FILE_TYPES = list(FILE_TYPE_CONFIG.keys())
 
     # Joplin Configuration

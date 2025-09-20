@@ -10,6 +10,7 @@ from markitdown import MarkItDown
 from .gemini_adapter import build_markitdown_with_gemini
 from .openai_adapter import build_markitdown_with_openai
 from .video_converter import convert_video_metadata
+from .drawio_converter import convert_drawio_to_markdown
 from app.models import ConversionType
 
 # Lazy initialized provider-specific MarkItDown instances
@@ -283,6 +284,11 @@ def convert_to_markdown(file_path, file_type):
 
         elif file_type_lower in current_app.config.get('VIDEO_TO_MARKDOWN_TYPES', []):
             content, conversion_type = convert_video_metadata(file_path)
+            if conversion_type is None:
+                return content, None
+
+        elif file_type_lower in current_app.config.get('DRAWIO_TO_MARKDOWN_TYPES', []):
+            content, conversion_type = convert_drawio_to_markdown(file_path)
             if conversion_type is None:
                 return content, None
 

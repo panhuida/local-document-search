@@ -13,6 +13,8 @@ def find_files(root_path, recursive, file_types_str, date_from_str=None, date_to
 
     # --- Load exclusion configurations ---
     excluded_dirs = current_app.config.get('EXCLUDED_DIRS', [])
+    # Support excluding directories by suffix pattern (e.g., knowledge note image folders ending with '.assets')
+    excluded_dir_suffixes = current_app.config.get('EXCLUDED_DIR_SUFFIXES', ['.assets'])
     excluded_extensions = tuple(f".{ext.lower()}" for ext in current_app.config.get('EXCLUDED_FILE_EXTENSIONS', []))
 
     # --- Timezone-aware date parsing ---
@@ -32,7 +34,18 @@ def find_files(root_path, recursive, file_types_str, date_from_str=None, date_to
     logger.debug(f"os.walk starting with root_path: '{root_path}'")
     for root, dirs, files in os.walk(root_path):
         # --- Exclude configured directories ---
-        dirs[:] = [d for d in dirs if d not in excluded_dirs]
+        # First, drop exact matches
+        filtered = []
+        for d in dirs:
+            # Exact name exclusion
+            if d in excluded_dirs:
+                continue
+            # Suffix exclusion (case-insensitive)
+            lower_d = d.lower()
+            if any(lower_d.endswith(suf.lower()) for suf in excluded_dir_suffixes):
+                continue
+            filtered.append(d)
+        dirs[:] = filtered
         
         for file in files:
             # --- Exclude configured file extensions ---

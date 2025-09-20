@@ -202,6 +202,7 @@ def get_file_types_config():
             'structured_to_markdown_types': create_type_list('STRUCTURED_TO_MARKDOWN'),
             'image_to_markdown_types': create_type_list('IMAGE_TO_MARKDOWN'),
             'video_to_markdown_types': create_type_list('VIDEO_TO_MARKDOWN'),
+            'drawio_to_markdown_types': create_type_list('DRAWIO_TO_MARKDOWN'),
             'conversion_info': {
                 'target_format': 'Markdown',
                 'ai_agent_ready': True,
