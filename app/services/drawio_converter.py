@@ -5,6 +5,7 @@ from urllib.parse import unquote
 import re
 import os
 from app.models import ConversionType
+from app.services.conversion_result import ConversionResult
 
 # Reuse logic similar to scripts/exportDrawioToMD.py but library-friendly
 
@@ -88,13 +89,13 @@ def _process_diagram(diagram: ET.Element):
     return diagram_name, texts
 
 
-def convert_drawio_to_markdown(path: str):
+def convert_drawio_to_markdown(path: str) -> ConversionResult:
     try:
         tree = ET.parse(path)
         root = tree.getroot()
         diagrams = root.findall('diagram')
         if not diagrams:
-            return f"# {os.path.basename(path)}\n\n未找到 diagram 元素\n", ConversionType.DRAWIO_TO_MD
+            return ConversionResult(success=False, error=f"# {os.path.basename(path)}\n\n未找到 diagram 元素\n", conversion_type=ConversionType.DRAWIO_TO_MD, content=None)
         results = []
         total = 0
         for d in diagrams:
@@ -110,10 +111,10 @@ def convert_drawio_to_markdown(path: str):
                 parts.append("*此页面没有找到文本内容*")
             parts.append("")
         markdown = "\n\n".join(parts).rstrip() + "\n"
-        return markdown, ConversionType.DRAWIO_TO_MD
+        return ConversionResult(success=True, content=markdown, conversion_type=ConversionType.DRAWIO_TO_MD)
     except FileNotFoundError:
-        return f"Draw.io 文件不存在: {path}", None
+        return ConversionResult(success=False, error=f"Draw.io 文件不存在: {path}", conversion_type=None, content=None)
     except ET.ParseError as e:
-        return f"Draw.io XML 解析失败: {e}", None
+        return ConversionResult(success=False, error=f"Draw.io XML 解析失败: {e}", conversion_type=None, content=None)
     except Exception as e:
-        return f"处理 Draw.io 发生未知错误: {e}", None
+        return ConversionResult(success=False, error=f"处理 Draw.io 发生未知错误: {e}", conversion_type=None, content=None)

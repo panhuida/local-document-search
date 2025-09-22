@@ -10,6 +10,7 @@ from markitdown import MarkItDown
 from app.models import ConversionType
 from app.services.conversion_result import ConversionResult
 from app.services.doc_converter import convert_doc_to_docx
+from app.services.drawio_converter import convert_drawio_to_markdown
 
 # Initialize markitdown instance
 _md = MarkItDown()
@@ -37,7 +38,7 @@ class XMindLoader:
 
     @staticmethod
     def topic2md_json(topic: dict, is_root: bool = False, depth: int = -1) -> str:
-        title = topic["title"].replace("\r", "").replace("\n", " ")
+        title = topic.get("title", "").replace("\r", "").replace("\n", " ")
         if is_root:
             md = "# " + title + "\n\n"
         else:
@@ -49,7 +50,8 @@ class XMindLoader:
 
     @staticmethod
     def topic2md_xml(topic: ET.Element, is_root: bool = False, depth: int = -1) -> str:
-        title = topic.find("title").text.replace("\r", "").replace("\n", " ")
+        title_element = topic.find("title")
+        title = title_element.text.replace("\r", "").replace("\n", " ") if title_element is not None and title_element.text is not None else ""
         if is_root:
             md = "# " + title + "\n\n"
         else:
@@ -159,6 +161,10 @@ def convert_to_markdown(file_path, file_type) -> ConversionResult:
                 conversion_type = ConversionType.STRUCTURED_TO_MD
             except Exception as e:
                 return ConversionResult(success=False, error=f"Markitdown conversion failed: {e}", conversion_type=None, content=None)
+        
+        elif file_type_lower in current_app.config.get('DRAWIO_TO_MARKDOWN_TYPES', []):
+            return convert_drawio_to_markdown(file_path)
+
         else:
             return ConversionResult(success=False, error=f"Unsupported file type: {file_type}", conversion_type=None, content=None)
 
