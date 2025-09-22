@@ -11,6 +11,7 @@ from app.models import ConversionType
 from app.services.conversion_result import ConversionResult
 from app.services.doc_converter import convert_doc_to_docx
 from app.services.drawio_converter import convert_drawio_to_markdown
+from app.services.ppt_converter import convert_ppt_to_pptx
 
 # Initialize markitdown instance
 _md = MarkItDown()
@@ -152,11 +153,23 @@ def convert_to_markdown(file_path, file_type) -> ConversionResult:
                     if not docx_path:
                         return ConversionResult(success=False, error="Failed to convert .doc to .docx", conversion_type=None, content=None)
                     file_path = docx_path # Continue with the new .docx path
+                elif file_type_lower == 'ppt':
+                    pptx_path = convert_ppt_to_pptx(file_path)
+                    if not pptx_path:
+                        return ConversionResult(success=False, error="Failed to convert .ppt to .pptx", conversion_type=None, content=None)
+                    file_path = pptx_path # Continue with the new .pptx path
+
+                current_app.logger.debug(f"Attempting Markitdown conversion for structured file: {file_path}")
+                
+                if not os.path.exists(file_path):
+                    return ConversionResult(success=False, error=f"Converted file not found: {file_path}", conversion_type=None, content=None)
 
                 with open(file_path, 'rb') as f:
                     result = _md.convert(f)
+                current_app.logger.debug(f"Markitdown conversion completed for {file_path}. Content length: {len(result.text_content) if result.text_content else 0}, Error: {getattr(result, 'error', None)}")
+
                 if not result.text_content or not result.text_content.strip():
-                    return ConversionResult(success=False, error=f"Markitdown conversion resulted in empty content for {file_path}", conversion_type=None, content=None)
+                    return ConversionResult(success=False, error=f"Markitdown conversion resulted in empty content for {file_path}. Error: {getattr(result, 'error', None)}", conversion_type=None, content=None)
                 content = result.text_content
                 conversion_type = ConversionType.STRUCTURED_TO_MD
             except Exception as e:
