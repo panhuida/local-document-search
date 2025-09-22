@@ -9,6 +9,7 @@ from flask import current_app
 from markitdown import MarkItDown
 from app.models import ConversionType
 from app.services.conversion_result import ConversionResult
+from app.services.doc_converter import convert_doc_to_docx
 
 # Initialize markitdown instance
 _md = MarkItDown()
@@ -26,7 +27,7 @@ class XMindLoader:
             elif "content.xml" in namelist:
                 content_xml = zf.read("content.xml").decode("utf-8")
                 content_xml = re.sub(r'\sxmlns(:\w+)?="[^"]+"', "", content_xml)
-                content_xml = re.sub(r'\b\w+:(\w+)=(?P<quote>["\\])[^"\\]*(?P=quote)', r"\1=\2", content_xml)
+                content_xml = re.sub(r'\b\w+:(\w+)=(["\'][^"\']*["\'])', r"\1=\2", content_xml)
                 root = ET.fromstring(content_xml)
                 return root, "xml"
             else:
@@ -144,6 +145,12 @@ def convert_to_markdown(file_path, file_type) -> ConversionResult:
 
         elif file_type_lower in current_app.config.get('STRUCTURED_TO_MARKDOWN_TYPES', []):
             try:
+                if file_type_lower == 'doc':
+                    docx_path = convert_doc_to_docx(file_path)
+                    if not docx_path:
+                        return ConversionResult(success=False, error="Failed to convert .doc to .docx", conversion_type=None, content=None)
+                    file_path = docx_path # Continue with the new .docx path
+
                 with open(file_path, 'rb') as f:
                     result = _md.convert(f)
                 if not result.text_content or not result.text_content.strip():
@@ -161,4 +168,3 @@ def convert_to_markdown(file_path, file_type) -> ConversionResult:
     except Exception as e:
         error_message = f"An unexpected error occurred in converter for {file_path}: {e}\n{traceback.format_exc()}"
         return ConversionResult(success=False, error=error_message, conversion_type=None, content=None)
-
