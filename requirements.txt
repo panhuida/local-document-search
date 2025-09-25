@@ -19,3 +19,4 @@ pytesseract
 pillow
 pytest
 pywin32
+faster-whisper

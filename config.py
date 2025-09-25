@@ -59,6 +59,7 @@ class Config:
         'mkv':  {'category': ConversionCategory.VIDEO,       'description': 'Matroska Video'},
         'mov':  {'category': ConversionCategory.VIDEO,       'description': 'QuickTime Video'},
         'webm': {'category': ConversionCategory.VIDEO,       'description': 'WebM Video'},
+        'flv':  {'category': ConversionCategory.VIDEO,       'description': 'Flash Video'},
         # Diagram
         'drawio': {'category': ConversionCategory.DIAGRAM,    'description': 'Draw.io Diagram'},
     }
@@ -143,3 +144,12 @@ class Config:
     # Provider fallback chain (e.g. "openai,google-genai,local"). If empty -> use IMAGE_CAPTION_PROVIDER only
     RAW_IMAGE_PROVIDER_CHAIN = os.environ.get('IMAGE_PROVIDER_CHAIN', '').strip()
     IMAGE_PROVIDER_CHAIN = [p.strip().lower() for p in RAW_IMAGE_PROVIDER_CHAIN.split(',') if p.strip()] if RAW_IMAGE_PROVIDER_CHAIN else []
+
+    # --- Video Transcription Configuration ---
+    ENABLE_VIDEO_TRANSCRIPTION = os.environ.get('ENABLE_VIDEO_TRANSCRIPTION', 'false').lower() in ('1', 'true', 'yes', 'on')
+    # faster-whisper model size (e.g., 'tiny', 'base', 'small', 'medium', 'large-v3')
+    WHISPER_MODEL = os.environ.get('WHISPER_MODEL', 'base')
+    # Device to use for transcription ('cpu', 'cuda')
+    WHISPER_DEVICE = os.environ.get('WHISPER_DEVICE', 'cpu')
+    # Path to ffmpeg and ffprobe binaries
+    FFMPEG_BIN = os.environ.get('FFMPEG_BIN', 'ffmpeg')

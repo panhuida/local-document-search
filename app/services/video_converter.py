@@ -1,7 +1,9 @@
 import os
 import json
 import subprocess
+import tempfile
 import hashlib
+from faster_whisper import WhisperModel
 from datetime import datetime
 from flask import current_app
 from app.models import ConversionType
@@ -57,36 +59,76 @@ def extract_metadata(path: str) -> dict:
     return meta
 
 
+def _transcribe_video(video_path: str) -> str:
+    """Transcribes a video file using faster-whisper, respecting config flags."""
+    if not current_app.config.get('ENABLE_VIDEO_TRANSCRIPTION', False):
+        return "(视频转录功能未启用)"
+
+    model_name = current_app.config.get('WHISPER_MODEL', 'base')
+    device = current_app.config.get('WHISPER_DEVICE', 'cpu')
+    ffmpeg_bin = current_app.config.get('FFMPEG_BIN', 'ffmpeg')
+    
+    current_app.logger.info(f"Starting transcription for {video_path} with model '{model_name}' on device '{device}'")
+
+    try:
+        model = WhisperModel(model_name, device=device, compute_type="int8")
+    except Exception as e:
+        err_msg = f"Failed to load faster-whisper model '{model_name}': {e}"
+        current_app.logger.error(err_msg)
+        return f"(视频转录失败: {err_msg})"
+
+    temp_audio = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmpfile:
+            temp_audio = tmpfile.name
+        
+        # Extract audio from video
+        cmd = [
+            ffmpeg_bin, '-i', video_path, '-vn', '-acodec', 'pcm_s16le', '-ar', '16000', '-ac', '1', '-y', temp_audio
+        ]
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        if proc.returncode != 0:
+            raise VideoMetadataError(f"ffmpeg audio extraction failed: {proc.stderr.strip()}")
+
+        # Transcribe
+        segments, _ = model.transcribe(temp_audio, beam_size=5)
+        
+        transcribed_text = '\n'.join([segment.text for segment in segments])
+        current_app.logger.info(f"Successfully transcribed {video_path}")
+        return transcribed_text
+
+    except Exception as e:
+        err_msg = f"Transcription process failed for {video_path}: {e}"
+        current_app.logger.error(err_msg)
+        return f"(视频转录失败: {err_msg})"
+    finally:
+        if temp_audio and os.path.exists(temp_audio):
+            os.remove(temp_audio)
+
+
 def convert_video_metadata(path: str):
     """Return (markdown_content, ConversionType.VIDEO_METADATA) or (error, None)."""
     def format_bytes(num: int) -> str:
-        if num is None:
-            return 'N/A'
+        if num is None: return 'N/A'
         units = ['B','KB','MB','GB','TB']
         size = float(num)
         for u in units:
-            if size < 1024 or u == units[-1]:
-                return f"{size:.2f} {u}"
+            if size < 1024 or u == units[-1]: return f"{size:.2f} {u}"
             size /= 1024
 
     def format_duration(seconds: float) -> str:
-        if not seconds and seconds != 0:
-            return 'N/A'
-        # seconds may be float
-        s = int(seconds)
-        ms = int((seconds - s) * 1000)
-        h = s // 3600
-        m = (s % 3600) // 60
-        sec = s % 60
-        if h > 0:
-            return f"{h:02d}:{m:02d}:{sec:02d}.{ms:03d}"
-        else:
-            return f"{m:02d}:{sec:02d}.{ms:03d}"
+        if not seconds and seconds != 0: return 'N/A'
+        s, ms = divmod(int(seconds * 1000), 1000)
+        h, s = divmod(s, 3600)
+        m, sec = divmod(s, 60)
+        return f"{h:02d}:{m:02d}:{sec:02d}.{ms:03d}" if h > 0 else f"{m:02d}:{sec:02d}.{ms:03d}"
+
     try:
         file_stats = os.stat(path)
         with open(path, 'rb') as f:
             sha256_hash = hashlib.sha256(f.read()).hexdigest()
         meta = extract_metadata(path)
+        transcription = _transcribe_video(path)
     except VideoMetadataError as ve:
         return f"Video metadata extraction failed: {ve}", None
     except Exception as e:
@@ -94,15 +136,18 @@ def convert_video_metadata(path: str):
 
     front = {
         'source_file': os.path.basename(path),
-        'provider': 'video-metadata',
+        'provider': 'video-processor',
         'hash_sha256': sha256_hash,
         'file_size_bytes': file_stats.st_size,
         'modified_time': datetime.fromtimestamp(file_stats.st_mtime).isoformat(),
         'video': {**meta, 'duration_human': format_duration(meta.get('duration_seconds'))},
-        'file_size_human': format_bytes(file_stats.st_size),  # 放在最后，方便阅读
+        'transcription_details': {
+            'enabled': current_app.config.get('ENABLE_VIDEO_TRANSCRIPTION', False),
+            'model': current_app.config.get('WHISPER_MODEL', 'base') if current_app.config.get('ENABLE_VIDEO_TRANSCRIPTION', False) else 'N/A'
+        },
+        'file_size_human': format_bytes(file_stats.st_size),
     }
 
-    # simple yaml dump
     def dump_yaml(d, indent=0):
         lines = []
         for k,v in d.items():
@@ -115,6 +160,6 @@ def convert_video_metadata(path: str):
         return '\n'.join(lines)
 
     yaml_block = dump_yaml(front)
-    md_parts = ["---", yaml_block, "---", f"# {os.path.basename(path)}", "(视频元数据占位，尚未生成转录内容)"]
+    md_parts = ["---", yaml_block, "---", f"# {os.path.basename(path)}", transcription]
     content = '\n\n'.join(md_parts) + '\n'
     return content, ConversionType.VIDEO_METADATA
