@@ -126,6 +126,10 @@ def _llm_image_convert(file_path: str, provider: str):
     return result.text_content, ConversionType.IMAGE_TO_MD
 
 def convert_image_to_markdown(file_path: str):
+    if not current_app.config.get('ENABLE_IMAGE_DESCRIPTION', False):
+        current_app.logger.info(f"Image description is disabled. Skipping content extraction for {os.path.basename(file_path)}.")
+        return f"# {os.path.basename(file_path)}\n", ConversionType.IMAGE_TO_MD
+
     primary = current_app.config.get('IMAGE_CAPTION_PROVIDER', 'google-genai').lower()
     chain = current_app.config.get('IMAGE_PROVIDER_CHAIN', []) or []
     # 若链为空，只尝试 primary

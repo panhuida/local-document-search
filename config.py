@@ -53,6 +53,7 @@ class Config:
         'jpeg': {'category': ConversionCategory.IMAGE,       'description': 'JPEG Image'},
         'bmp':  {'category': ConversionCategory.IMAGE,       'description': 'Bitmap Image'},
         'gif':  {'category': ConversionCategory.IMAGE,       'description': 'GIF Image'},
+        'webp': {'category': ConversionCategory.IMAGE,       'description': 'WebP Image'},
         # Video
         'mp4':  {'category': ConversionCategory.VIDEO,       'description': 'MP4 Video'},
         'mkv':  {'category': ConversionCategory.VIDEO,       'description': 'Matroska Video'},
@@ -94,7 +95,7 @@ class Config:
     FILE_TYPE_ORDER = {
         'code_to_markdown_types': ['py', 'sql', 'sh'],
         'structured_to_markdown_types': ['pdf','docx','xlsx','pptx','doc','xls','ppt'],
-        'image_to_markdown_types': ['png','jpg','jpeg','gif','bmp'],
+        'image_to_markdown_types': ['png','jpg','jpeg','gif','bmp','webp'],
         'html_to_markdown_types': ['html','htm']
     }
 
@@ -127,6 +128,8 @@ class Config:
     ]
 
     # --- Image Caption Provider Configuration ---
+    # Master switch for image description/OCR. Default changed to False; environment variable can still override.
+    ENABLE_IMAGE_DESCRIPTION = os.environ.get('ENABLE_IMAGE_DESCRIPTION', 'false').lower() in ('1', 'true', 'yes', 'on')
     # Options: local | openai | google-genai
     IMAGE_CAPTION_PROVIDER = os.environ.get('IMAGE_CAPTION_PROVIDER', 'google-genai').lower()
     # Local OCR language (for pytesseract); can be overridden by env TESSERACT_LANG

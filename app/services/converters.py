@@ -11,6 +11,7 @@ from app.models import ConversionType
 from app.services.conversion_result import ConversionResult
 from app.services.doc_converter import convert_doc_to_docx
 from app.services.drawio_converter import convert_drawio_to_markdown
+from app.services.image_converter import convert_image_to_markdown
 from app.services.ppt_converter import convert_ppt_to_pptx
 from app.services.video_converter import convert_video_metadata
 
@@ -130,22 +131,13 @@ def convert_to_markdown(file_path, file_type) -> ConversionResult:
 
         elif file_type_lower in current_app.config.get('IMAGE_TO_MARKDOWN_TYPES', []):
             try:
-                with open(file_path, 'rb') as f:
-                    # Use MarkItDown to perform OCR and extract EXIF metadata
-                    result = _md.convert(f)
-                
-                # The result.text_content will contain the Markdown from OCR and metadata
-                if not result.text_content or not result.text_content.strip():
-                    # This can happen if the image has no text and no significant metadata.
-                    # Instead of an error, we treat it as a success with minimal content.
-                    current_app.logger.warning(f"Image conversion for {file_path} resulted in empty content. This is acceptable.")
-                    content = f"# {os.path.basename(file_path)}\n\n"
-                else:
-                    content = result.text_content
-
-                conversion_type = ConversionType.IMAGE_TO_MD
+                # Centralized call to the image converter
+                content, conversion_type = convert_image_to_markdown(file_path)
+                if conversion_type is None:
+                    # The image converter returns None for conversion_type on failure
+                    return ConversionResult(success=False, error=content, conversion_type=None, content=None)
             except Exception as e:
-                return ConversionResult(success=False, error=f"Image OCR/metadata extraction failed: {e}", conversion_type=None, content=None)
+                return ConversionResult(success=False, error=f"Image conversion failed: {e}", conversion_type=None, content=None)
 
         elif file_type_lower in current_app.config.get('HTML_TO_MARKDOWN_TYPES', []):
             try:
