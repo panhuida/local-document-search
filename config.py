@@ -34,6 +34,7 @@ class Config:
         # ext: {'category', 'description'}
         'md':   {'category': ConversionCategory.NATIVE,     'description': 'Markdown'},
         'txt':  {'category': ConversionCategory.PLAIN_TEXT,  'description': 'Plain Text'},
+        'srt':  {'category': ConversionCategory.PLAIN_TEXT,  'description': 'Subtitle File'},
         'sql':  {'category': ConversionCategory.CODE,        'description': 'SQL Script'},
         'py':   {'category': ConversionCategory.CODE,        'description': 'Python Script'},
         'sh':   {'category': ConversionCategory.CODE,        'description': 'Shell Script'},
