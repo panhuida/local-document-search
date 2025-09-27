@@ -61,6 +61,9 @@ class Config:
         'mov':  {'category': ConversionCategory.VIDEO,       'description': 'QuickTime Video'},
         'webm': {'category': ConversionCategory.VIDEO,       'description': 'WebM Video'},
         'flv':  {'category': ConversionCategory.VIDEO,       'description': 'Flash Video'},
+        'wma':  {'category': ConversionCategory.VIDEO,       'description': 'WMA Audio'},
+        'mp3':  {'category': ConversionCategory.VIDEO,       'description': 'MP3 Audio'},
+        'm4a':  {'category': ConversionCategory.VIDEO,       'description': 'M4A Audio'},
         # Diagram
         'drawio': {'category': ConversionCategory.DIAGRAM,    'description': 'Draw.io Diagram'},
     }

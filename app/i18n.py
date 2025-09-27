@@ -111,7 +111,7 @@ _TRANSLATIONS = {
     ,"import.conv.structured_to_markdown": "Office/PDF"
     ,"import.conv.html_to_markdown": "HTML"
     ,"import.conv.image_to_markdown": "图片"
-    ,"import.conv.video_to_markdown": "视频"
+    ,"import.conv.video_to_markdown": "音视频"
     ,"import.conv.drawio_to_markdown": "draw.io"
     ,"import.conv.target_format": "目标格式"
     ,"import.conv.ai_agent_ready": "AI Agent 预处理已启用"

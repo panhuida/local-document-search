@@ -62,7 +62,7 @@ def extract_metadata(path: str) -> dict:
 def _transcribe_video(video_path: str) -> str:
     """Transcribes a video file using faster-whisper, respecting config flags."""
     if not current_app.config.get('ENABLE_VIDEO_TRANSCRIPTION', False):
-        return "(视频转录功能未启用)"
+        return "(音视频转录功能未启用)"
 
     model_name = current_app.config.get('WHISPER_MODEL', 'base')
     device = current_app.config.get('WHISPER_DEVICE', 'cpu')
@@ -75,7 +75,7 @@ def _transcribe_video(video_path: str) -> str:
     except Exception as e:
         err_msg = f"Failed to load faster-whisper model '{model_name}': {e}"
         current_app.logger.error(err_msg)
-        return f"(视频转录失败: {err_msg})"
+        return f"(音视频转录失败: {err_msg})"
 
     temp_audio = None
     try:
@@ -100,7 +100,7 @@ def _transcribe_video(video_path: str) -> str:
     except Exception as e:
         err_msg = f"Transcription process failed for {video_path}: {e}"
         current_app.logger.error(err_msg)
-        return f"(视频转录失败: {err_msg})"
+        return f"(音视频转录失败: {err_msg})"
     finally:
         if temp_audio and os.path.exists(temp_audio):
             os.remove(temp_audio)

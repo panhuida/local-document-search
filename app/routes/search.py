@@ -211,7 +211,7 @@ def get_file_types_config():
         ConversionType.STRUCTURED_TO_MD: 'Office/PDF',
         ConversionType.XMIND_TO_MD: '思维导图',
         ConversionType.IMAGE_TO_MD: '图片',
-        ConversionType.VIDEO_METADATA: '视频',
+        ConversionType.VIDEO_METADATA: '音视频',
         ConversionType.DRAWIO_TO_MD: 'draw.io',
         ConversionType.HTML_TO_MD: 'HTML',
     }
