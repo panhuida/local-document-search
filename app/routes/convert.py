@@ -1,8 +1,28 @@
 import os
 import json
-import tkinter as tk
+import sys
 import unicodedata
-from tkinter import filedialog
+
+# Defer importing tkinter until needed to avoid import errors on headless servers.
+_tk_available = True
+tk = None
+filedialog = None
+
+def ensure_tk():
+    """Attempt to import tkinter on demand. Returns True if available."""
+    global _tk_available, tk, filedialog
+    if tk is not None and filedialog is not None:
+        return _tk_available
+    try:
+        import tkinter as _tk
+        from tkinter import filedialog as _filedialog
+        tk = _tk
+        filedialog = _filedialog
+        _tk_available = True
+    except Exception:
+        # In headless environments (like many Ubuntu servers) tkinter may not be installed
+        _tk_available = False
+    return _tk_available
 from flask import Blueprint, request, jsonify, current_app, Response
 from app.services.ingestion_manager import (
     run_local_ingestion,
@@ -24,6 +44,10 @@ def browse_folder():
     Opens a dialog for the user to select a folder.
     Returns the selected folder path.
     """
+    if not ensure_tk():
+        current_app.logger.warning('tkinter is not available in this environment; browse-folder is not supported.')
+        return jsonify({'status': 'error', 'message': 'tkinter (GUI) is not available on this server. Use the API with a folder_path parameter instead.'}), 400
+
     try:
         root = tk.Tk()
         root.withdraw()  # Hide the main tkinter window

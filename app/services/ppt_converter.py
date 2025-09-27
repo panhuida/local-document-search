@@ -1,9 +1,20 @@
 import os
-import win32com.client as win32
-from win32com.client import constants
+import shutil
+import subprocess
+import sys
 from flask import current_app
 from pathlib import Path
-import pythoncom
+
+# Try to import win32com when on Windows; otherwise fallback to LibreOffice headless (soffice)
+_has_win32 = False
+try:
+    if sys.platform == 'win32':
+        import win32com.client as win32  # type: ignore
+        from win32com.client import constants  # type: ignore
+        import pythoncom  # type: ignore
+        _has_win32 = True
+except Exception:
+    _has_win32 = False
 
 def convert_ppt_to_pptx(ppt_path: str) -> str | None:
     """
@@ -26,33 +37,53 @@ def convert_ppt_to_pptx(ppt_path: str) -> str | None:
         current_app.logger.info(f"Skipping conversion for {pptx_path_obj} as {pptx_path_obj} already exists.")
         return str(pptx_path_obj)
 
-    try:
-        # 在多线程环境下需要初始化COM库
-        pythoncom.CoInitialize()
+    # Prefer Windows COM automation when available
+    if _has_win32:
+        try:
+            pythoncom.CoInitialize()
+            powerpoint = win32.gencache.EnsureDispatch('PowerPoint.Application')
+            presentation = powerpoint.Presentations.Open(str(ppt_path_obj), ReadOnly=False)
+            presentation.SaveAs(str(pptx_path_obj), FileFormat=constants.ppSaveAsOpenXMLPresentation)
+            current_app.logger.info(f"Successfully converted {ppt_path_obj} to {pptx_path_obj} via PowerPoint COM")
+            return str(pptx_path_obj)
+        except Exception as e:
+            current_app.logger.error(f"Failed to convert {ppt_path_obj} to .pptx using PowerPoint COM: {e}", exc_info=True)
+            return None
+        finally:
+            try:
+                if presentation:
+                    presentation.Close()
+            except Exception:
+                pass
+            try:
+                if powerpoint:
+                    powerpoint.Quit()
+            except Exception:
+                pass
+            try:
+                pythoncom.CoUninitialize()
+            except Exception:
+                pass
 
-        # 启动 PowerPoint 应用程序，并确保它在后台运行
-        powerpoint = win32.gencache.EnsureDispatch('PowerPoint.Application')
-
-        # 打开演示文稿，ReadOnly=False 确保可以保存
-        presentation = powerpoint.Presentations.Open(str(ppt_path_obj), ReadOnly=False)
-
-        # 保存为 .pptx 格式，使用正确的常量
-        # constants.ppSaveAsOpenXMLPresentation 才是 .pptx 格式
-        presentation.SaveAs(str(pptx_path_obj), FileFormat=constants.ppSaveAsOpenXMLPresentation)
-        
-        current_app.logger.info(f"Successfully converted {pptx_path_obj} to {pptx_path_obj}")
-        return str(pptx_path_obj)
-    
-    except Exception as e:
-        current_app.logger.error(f"Failed to convert {pptx_path_obj} to .pptx: {e}", exc_info=True)
+    # Fallback to LibreOffice (soffice) headless conversion on non-Windows platforms
+    soffice_path = shutil.which('soffice') or shutil.which('libreoffice')
+    if not soffice_path:
+        current_app.logger.error("LibreOffice (soffice) not found on PATH; cannot convert .ppt to .pptx on this platform.")
         return None
-    
-    finally:
-        # 确保演示文稿和应用被正确关闭
-        if presentation:
-            presentation.Close()
-        if powerpoint:
-            powerpoint.Quit()
-        
-        # 在多线程环境下，确保在函数退出时取消初始化COM库
-        pythoncom.CoUninitialize()
+    try:
+        subprocess.check_call([
+            soffice_path,
+            '--headless',
+            '--convert-to', 'pptx:MS PowerPoint 2007 XML',
+            '--outdir', str(ppt_path_obj.parent),
+            str(ppt_path_obj)
+        ])
+        if pptx_path_obj.exists():
+            current_app.logger.info(f"Successfully converted {ppt_path_obj} to {pptx_path_obj} via LibreOffice")
+            return str(pptx_path_obj)
+        else:
+            current_app.logger.error(f"LibreOffice conversion completed but output file not found: {pptx_path_obj}")
+            return None
+    except subprocess.CalledProcessError as e:
+        current_app.logger.error(f"LibreOffice conversion failed for {ppt_path_obj}: {e}", exc_info=True)
+        return None

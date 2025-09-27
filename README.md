@@ -617,6 +617,39 @@ flask db migrate -m "A short description of the changes"
 flask db upgrade
 ```
 
+
+## 部署到 Ubuntu 24.04 的注意事项
+
+在 Ubuntu Server 或其他 Linux 环境中部署本项目时，常见问题是某些依赖在 Windows 上可用（例如 `pywin32`、Windows COM 自动化）或者需要 GUI 支持的库（例如 `tkinter`）在无头服务器上不可用。下面是建议的处理方式：
+
+- pywin32
+  - `pywin32` 仅在 Windows 平台上可用。本项目在 `requirements.txt` 中将 `pywin32` 标记为仅在 Windows 上安装（环境标记：`pywin32; sys_platform == "win32"`）。在 Ubuntu 上无需安装该包。
+  - 在代码中，当在 Windows 平台并且 `pywin32` 可用时，项目会使用 Windows COM（Word/PowerPoint）进行 `.doc` / `.ppt` 等老格式的转换；否则会回退到使用 LibreOffice（soffice）以 headless 模式执行转换。
+
+- tkinter
+  - `tkinter` 通常用于打开本地文件选择对话框（仅适合有图形界面的桌面环境）。在无头的 Ubuntu 服务器上，`tkinter` 可能不可用或无法运行。项目中已实现懒加载并在缺少 `tkinter` 时返回友好的错误，建议在服务器部署时通过 API 直接传入目录路径（`folder_path` 参数）而不是依赖浏览对话框。
+  - 如果确实需要在 Ubuntu 桌面环境中使用 GUI，可以安装：
+    ```bash
+    sudo apt update
+    sudo apt install -y python3-tk
+    ```
+
+- LibreOffice headless（推荐在服务器上进行文件格式转换）
+  - 在没有 Windows COM 支持的 Linux 系统上，安装 LibreOffice 并确保 `soffice` 在 PATH 中，项目会使用 `soffice --headless --convert-to ...` 执行格式转换。
+  - 在 Ubuntu 24.04 上安装 LibreOffice：
+    ```bash
+    sudo apt update
+    sudo apt install -y libreoffice
+    ```
+
+- 运行时建议
+  - 在服务器上运行时，优先通过 API 提供 `folder_path` 参数，避免触发任何 GUI 相关代码路径。
+  - 确保在部署前用 `pip install -r requirements.txt` 安装依赖（注意 `pywin32` 在 Linux 上不会安装）。
+  - 如果需要自动化将大量 Office 老格式转换为现代格式（例如 `.doc` -> `.docx`），建议在服务器上安装 LibreOffice，并根据需要预先测试 `soffice --headless --convert-to docx filename.doc` 的行为。
+
+如果你需要，我可以帮助你把项目打包为 Dockerfile，使得转换依赖（LibreOffice、python3-tk 可选）在容器中可预测地可用。
+
+
 ## 📄 许可证
 
 本项目采用 MIT 许可证。
