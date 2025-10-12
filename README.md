@@ -91,7 +91,50 @@ flask db upgrade
 
 ## 🚀 快速开始
 
-### 1. 启动 Web 应用
+### 方式一：一键启动（推荐）
+
+**Windows:**
+```bash
+start.bat
+```
+
+**Linux/macOS:**
+```bash
+chmod +x start.sh
+./start.sh
+```
+
+脚本会自动：
+1. 检查运行环境
+2. 尝试修复常见问题
+3. 启动必要服务
+4. 启动 Web 应用
+
+### 方式二：手动启动
+
+#### 1. 环境检查
+```bash
+# 检查环境是否就绪
+python scripts/check_environment.py
+
+# 自动修复部分问题（创建.env等）
+python scripts/check_environment.py --fix
+```
+
+#### 2. 启动服务
+```bash
+# 检查 PostgreSQL 服务状态
+python scripts/start_services.py --check
+
+# 启动 PostgreSQL（交互式，Windows 可能需要管理员权限）
+python scripts/start_services.py
+```
+
+或手动启动 PostgreSQL：
+- **Windows**: `Start-Service postgresql-x64-17` (PowerShell 管理员)
+- **Linux**: `sudo systemctl start postgresql`
+
+#### 3. 启动 Web 应用
 在项目根目录下运行：
 ```bash
 python run.py
@@ -649,6 +692,139 @@ flask db upgrade
 
 如果你需要，我可以帮助你把项目打包为 Dockerfile，使得转换依赖（LibreOffice、python3-tk 可选）在容器中可预测地可用。
 
+## 🔧 故障排查
+
+### 环境检查工具
+
+项目提供了完整的环境检查和服务管理脚本，位于 `scripts/` 目录：
+
+```bash
+# 全面检查运行环境
+python scripts/check_environment.py
+
+# 自动修复常见问题
+python scripts/check_environment.py --fix
+
+# 管理 PostgreSQL 服务
+python scripts/start_services.py
+
+# 查看详细使用说明
+cat scripts/README_SCRIPTS.md
+```
+
+### 常见问题
+
+#### 1. PostgreSQL 连接失败
+
+**症状**：
+```
+psql: error: connection to server at "localhost" (::1), port 5432 failed
+```
+
+**解决方法**：
+```bash
+# 1. 检查服务状态
+python scripts/start_services.py --check
+
+# 2. 启动服务（Windows 需要管理员权限）
+python scripts/start_services.py
+
+# 3. 验证端口配置
+# 检查 .env 中的 DATABASE_URL 端口是否与实际服务端口一致
+```
+
+#### 2. 缺少数据库扩展
+
+**症状**：
+```
+ERROR: relation "documents" does not exist
+或
+ERROR: function pgroonga_score does not exist
+```
+
+**解决方法**：
+```sql
+-- 连接到数据库
+psql -U postgres -d document_search
+
+-- 创建扩展
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS pgroonga;
+
+-- 验证
+SELECT extname FROM pg_extension;
+```
+
+#### 3. 权限不足（Windows）
+
+**症状**：
+```
+UnauthorizedAccessException: 访问被拒绝
+```
+
+**解决方法**：
+- 以管理员身份运行 PowerShell
+- 或在服务管理器中手动启动 PostgreSQL 服务
+
+#### 4. Python 包缺失
+
+**症状**：
+```
+ModuleNotFoundError: No module named 'xxx'
+```
+
+**解决方法**：
+```bash
+# 重新安装所有依赖
+pip install -r requirements.txt --upgrade
+
+# 或安装特定包
+pip install <package_name>
+```
+
+#### 5. 视频/图片处理失败
+
+**症状**：
+- 视频转录失败
+- 图片 OCR 无输出
+
+**解决方法**：
+```bash
+# 检查外部工具
+ffmpeg -version
+tesseract --version
+
+# 检查语言包（Tesseract）
+tesseract --list-langs
+
+# 安装缺失的语言包（示例）
+# Windows: 下载并安装 https://github.com/tesseract-ocr/tessdata
+# Linux: sudo apt-get install tesseract-ocr-chi-sim
+```
+
+#### 6. 查看详细日志
+
+应用日志位于 `logs/` 目录：
+
+```bash
+# 应用日志
+tail -f logs/app.log
+
+# 错误日志
+tail -f logs/errors.log
+```
+
+### 获取帮助
+
+如果上述方法无法解决问题：
+
+1. 运行完整环境检查：`python scripts/check_environment.py`
+2. 查看日志文件：`logs/app.log` 和 `logs/errors.log`
+3. 查看脚本文档：`scripts/README_SCRIPTS.md`
+4. 提交 Issue 时附上：
+   - 环境检查输出
+   - 错误日志
+   - 操作系统和 Python 版本
 
 ## 📄 许可证
 
