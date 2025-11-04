@@ -247,6 +247,7 @@ local_document_search/
 │   ├── templates/            # HTML 模板
 │   ├── utils/                # 辅助工具函数
 │   ├── __init__.py           # 应用工厂函数
+│   ├── config.py            # 配置文件
 │   └── models.py             # SQLAlchemy 数据模型
 ├── logs/               	  # 运行日志
 ├── migrations/               # Flask-Migrate 数据库迁移脚本
@@ -254,7 +255,6 @@ local_document_search/
 ├── tests/                    # 单元测试
 ├── .env                      # 环境变量 (需从 .env.example 复制创建)
 ├── .env.example              # 环境变量模板
-├── config.py                 # 配置文件
 ├── requirements.txt          # Python 依赖
 └── run.py                    # 应用启动入口
 ```
@@ -347,7 +347,7 @@ http://127.0.0.1:5000/process?lang=zh
 | `JOPLIN_API_TOKEN`          | Joplin API Token                                    | -                        |
 | `JOPLIN_API_URL`            | Joplin API 基础地址                                 | `http://localhost:41184` |
 
-> 更多请查看 `config.py`。
+> 更多请查看 `app/config.py`。
 
 
 

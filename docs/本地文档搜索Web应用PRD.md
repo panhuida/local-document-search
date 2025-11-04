@@ -554,6 +554,7 @@ local_document_search/
 │   ├── __init__.py              # Flask 应用工厂
 │   ├── extensions.py            # 第三方扩展初始化（db, migrate, etc.）
 │   ├── models.py                # 数据模型（SQLAlchemy ORM）
+│   ├── config.py                # 配置文件（从 .env 读取）
 │   ├── routes/                  # 路由层（蓝图）
 │   │   ├── __init__.py
 │   │   ├── convert.py           # 文件夹选择与转换 API
@@ -583,7 +584,6 @@ local_document_search/
 ├── logs/                         # 日志文件目录
 ├── .env                          # 环境变量（数据库连接等）
 ├── .gitignore                    # Git忽略文件
-├── config.py                     # 配置文件（从 .env 读取）
 ├── requirements.txt              # Python 依赖
 ├── run.py                        # 开发启动入口
 └── README.md
