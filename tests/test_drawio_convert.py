@@ -1,8 +1,8 @@
-import os
+﻿import os
 import tempfile
 import textwrap
-from app.services.drawio_converter import convert_drawio_to_markdown
-from app.models import ConversionType
+from local_document_search.services.drawio_converter import convert_drawio_to_markdown
+from local_document_search.models import ConversionType
 
 def _write_tmp_drawio(content: str):
     fd, path = tempfile.mkstemp(suffix='.drawio')
@@ -28,7 +28,9 @@ def test_drawio_simple_inline_model():
     ''')
     path = _write_tmp_drawio(xml)
     try:
-        md, ct = convert_drawio_to_markdown(path)
+        result = convert_drawio_to_markdown(path)
+        md = result.content
+        ct = result.conversion_type
         assert ct == ConversionType.DRAWIO_TO_MD
         assert '# ' + os.path.basename(path) in md
         assert '总共 1 个页面' in md
@@ -63,7 +65,9 @@ def test_drawio_multiple_pages_and_empty():
     ''')
     path = _write_tmp_drawio(xml)
     try:
-        md, ct = convert_drawio_to_markdown(path)
+        result = convert_drawio_to_markdown(path)
+        md = result.content
+        ct = result.conversion_type
         assert ct == ConversionType.DRAWIO_TO_MD
         assert '总共 2 个页面，1 个文本项目' in md
         assert '## PageA' in md
@@ -72,3 +76,4 @@ def test_drawio_multiple_pages_and_empty():
         assert '此页面没有找到文本内容' in md
     finally:
         os.remove(path)
+

@@ -1,4 +1,4 @@
-
+﻿
 import os
 import sys
 import requests
@@ -6,17 +6,18 @@ import json
 from datetime import datetime, timezone, timedelta
 import traceback
 
-# Add project root to sys.path
+# Add src to sys.path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+src_path = os.path.join(project_root, 'src')
+if src_path not in sys.path:
+    sys.path.insert(0, src_path)
 
 import io
 from markdownify import markdownify as md
 
 from flask import Flask
-from app import create_app, db
-from app.models import Document, IngestState, ConversionType, ConversionType
+from local_document_search import create_app, db
+from local_document_search.models import Document, IngestState, ConversionType, ConversionType
 from sqlalchemy.exc import SQLAlchemyError
 
 class JoplinImporter:
@@ -228,3 +229,4 @@ if __name__ == '__main__':
 
     importer = JoplinImporter(app)
     importer.run(full_resync=is_full_resync, test_note_ids=test_ids)
+

@@ -1,9 +1,13 @@
-import click
+﻿import click
 from flask import current_app
 from run import create_app
-from app.extensions import db
-from app.models import Document, ConversionType
-from app.services.converters import convert_to_markdown
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
+from local_document_search.extensions import db
+
+from local_document_search.models import Document, ConversionType
+from local_document_search.services.converters import convert_to_markdown
 
 
 @click.command()
@@ -37,3 +41,4 @@ def reprocess_html(only_missing):
 
 if __name__ == '__main__':
     reprocess_html()
+

@@ -4,6 +4,9 @@ REM 用于快速检查环境并启动本地文档搜索系统
 
 setlocal enabledelayedexpansion
 
+REM Set PYTHONPATH to include src directory
+set "PYTHONPATH=%~dp0src;%PYTHONPATH%"
+
 echo.
 echo ========================================
 echo   本地文档搜索系统 - 快速启动
@@ -27,7 +30,7 @@ if errorlevel 1 (
     echo 常见问题：
     echo   - PostgreSQL 服务未启动：以管理员身份运行此脚本
     echo   - 缺少配置文件：已自动创建 .env，请编辑后重新运行
-    echo   - 缺少 Python 包：运行 pip install -r requirements.txt
+    echo   - 缺少 Python 包：请运行 uv sync 或 pip install .
     echo.
     pause
     exit /b 1

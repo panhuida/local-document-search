@@ -1,4 +1,4 @@
-"""显示当前 MarkItDown / Gemini 适配下实际生效的图片描述提示词。
+﻿"""显示当前 MarkItDown / Gemini 适配下实际生效的图片描述提示词。
 
 优先级（从高到低）：
 1. 运行时显式参数 (--prompt)
@@ -26,7 +26,9 @@
 from __future__ import annotations
 import os
 import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 import argparse
+
 from dataclasses import dataclass
 from typing import Optional
 
@@ -56,7 +58,7 @@ def build_markitdown_instance() -> tuple[object, Optional[str]]:
     若未配置 GEMINI_API_KEY，将返回无 llm 的实例，instance_prompt = None。
     """
     try:
-        from app.services.gemini_adapter import build_markitdown_with_gemini
+        from local_document_search.services.gemini_adapter import build_markitdown_with_gemini
     except Exception:
         # 回退基础 MarkItDown
         from markitdown import MarkItDown
@@ -130,3 +132,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

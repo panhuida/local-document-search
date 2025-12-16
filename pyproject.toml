@@ -1,0 +1,43 @@
+[project]
+name = "local-document-search"
+version = "0.1.0"
+description = "Local Document Search Application"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "Flask",
+    "python-dotenv",
+    "SQLAlchemy",
+    "psycopg2-binary",
+    "Flask-Migrate",
+    "markitdown[all]",
+    "mdit-py-plugins",
+    "Markdown",
+    "requests",
+    "Flask-Cors",
+    "tenacity",
+    "beautifulsoup4",
+    "lxml",
+    "markdownify",
+    "markdown-it-py[linkify]",
+    "google-genai",
+    "openai",
+    "pytesseract",
+    "pillow",
+    "faster-whisper",
+    "dashscope",
+    "pywin32; sys_platform == 'win32'",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+pythonpath = "src"
+testpaths = ["tests"]

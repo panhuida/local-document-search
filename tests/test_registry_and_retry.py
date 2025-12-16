@@ -1,18 +1,22 @@
-import os
+﻿import os
 import tempfile
-from app import create_app
-from app.extensions import db
-from app.models import Document, ConversionType
-from app.services.converters import convert_to_markdown
-from app.services.ingestion_manager import start_session, request_cancel_ingestion, is_cancelled
+from local_document_search import create_app
+from local_document_search.extensions import db
+from local_document_search.models import Document, ConversionType
+from local_document_search.services.converters import convert_to_markdown
+from local_document_search.services.ingestion_manager import start_session, request_cancel_ingestion, is_cancelled
+from local_document_search.config import Config
+
+class TestConfig(Config):
+    TESTING = True
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
 
 def setup_app():
-    app = create_app()
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
-    app.config['TESTING'] = True
+    app = create_app(TestConfig)
     with app.app_context():
         db.create_all()
     return app
+
 
 
 def test_convert_plain_text(tmp_path=None):
@@ -40,7 +44,7 @@ def test_retry_flow_and_session_cancel():
         db.session.commit()
 
         # Retry should still fail for unsupported type
-        from app.services.converters import convert_to_markdown as ctm
+        from local_document_search.services.converters import convert_to_markdown as ctm
         result = ctm(doc.file_path, doc.file_type)
         assert not result.success
         assert 'Unsupported file type' in result.error
@@ -50,3 +54,4 @@ def test_retry_flow_and_session_cancel():
         assert not is_cancelled(sid)
         request_cancel_ingestion(sid)
         assert is_cancelled(sid)
+

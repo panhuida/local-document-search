@@ -1,13 +1,14 @@
-import sys
+﻿import sys
 from pathlib import Path
 
 # Ensure project root is on sys.path so `app` package can be imported when running
 # this script directly (python scripts\test_image_converter.py)
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+src_path = ROOT / 'src'
+if str(src_path) not in sys.path:
+    sys.path.insert(0, str(src_path))
 
-from app.services.image_converter import convert_image_to_markdown
+from local_document_search.services.image_converter import convert_image_to_markdown
 from flask import Flask
 app = Flask(__name__)
 app.config['ENABLE_IMAGE_DESCRIPTION'] = True

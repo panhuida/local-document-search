@@ -1,7 +1,7 @@
-import os
+﻿import os
 import pytest
-from app.services.video_converter import convert_video_metadata
-from app.models import ConversionType
+from local_document_search.services.video_converter import convert_video_metadata
+from local_document_search.models import ConversionType
 
 @pytest.mark.skipif(not os.environ.get('FFPROBE_BIN') and os.system('ffprobe -version >nul 2>&1') != 0,
                     reason='ffprobe not available in PATH')
@@ -16,3 +16,4 @@ def test_video_metadata_minimal(tmp_path):
         assert ctype == ConversionType.VIDEO_METADATA
         assert 'provider: video-metadata' in content
         assert 'source_file: dummy.mp4' in content
+

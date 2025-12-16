@@ -1,7 +1,7 @@
 import os
 import tempfile
-from app.services.converters import convert_to_markdown
-from app.models import ConversionType
+from local_document_search.services.converters import convert_to_markdown
+from local_document_search.models import ConversionType
 
 
 def test_html_conversion_type(app_context):
@@ -12,7 +12,7 @@ def test_html_conversion_type(app_context):
         tmp_path = tmp.name
 
     try:
-        result = convert_to_markdown(tmp_path)
+        result = convert_to_markdown(tmp_path, file_type='html')
         assert result.success, f"Conversion failed: {result.error}"
         assert result.conversion_type == ConversionType.HTML_TO_MD, (
             f"Expected conversion_type {ConversionType.HTML_TO_MD} for HTML, got {result.conversion_type}"

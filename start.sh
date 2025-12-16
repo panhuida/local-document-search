@@ -11,6 +11,8 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+export PYTHONPATH="src:$PYTHONPATH"
+
 echo -e "\n${BLUE}========================================"
 echo -e "  本地文档搜索系统 - 快速启动"
 echo -e "========================================${NC}\n"
@@ -27,7 +29,7 @@ if ! python3 scripts/check_environment.py --fix; then
     echo "常见问题："
     echo "  - PostgreSQL 服务未启动：sudo systemctl start postgresql"
     echo "  - 缺少配置文件：已自动创建 .env，请编辑后重新运行"
-    echo "  - 缺少 Python 包：pip3 install -r requirements.txt"
+    echo "  - 缺少 Python 包：请运行 uv sync 或 pip3 install ."
     echo ""
     exit 1
 fi

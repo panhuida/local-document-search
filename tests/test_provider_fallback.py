@@ -1,7 +1,7 @@
-import pytest
-from app import create_app
-from app.services.image_converter import convert_image_to_markdown
-from app.services import provider_factory
+﻿import pytest
+from local_document_search import create_app
+from local_document_search.services.image_converter import convert_image_to_markdown
+from local_document_search.services import provider_factory
 
 class DummyFailMarkItDown:
     def convert(self, f, **kwargs):
@@ -58,3 +58,4 @@ def test_chain_primary_not_in_chain_added(app_ctx, monkeypatch):
     content, ctype = convert_image_to_markdown(img_path)
     assert 'DUMMY OK' in content
     assert ctype is not None
+

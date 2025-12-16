@@ -1,9 +1,9 @@
-import io
+﻿import io
 import os
 import zipfile
 import tempfile
-from app.services.xmind_converter import convert_xmind_to_markdown
-from app.models import ConversionType
+from local_document_search.services.xmind_converter import convert_xmind_to_markdown
+from local_document_search.models import ConversionType
 
 def _make_minimal_xmind(path: str):
     # Minimal JSON structure for XMind: list with one sheet containing rootTopic
@@ -36,3 +36,4 @@ def test_xmind_minimal_conversion():
         assert ctype == ConversionType.XMIND_TO_MD
         assert md.startswith('# Root Topic')
         assert '- Child A' in md and '- Child B' in md
+

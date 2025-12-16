@@ -1,0 +1,613 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ page_title or "文档导入" }}{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <!-- Main Card with Title inside header -->
+    <div class="bg-white dark:bg-gray-800 shadow-lg dark:shadow-none rounded-xl overflow-hidden">
+        <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex flex-col gap-3">
+            <h1 class="heading-1">文档导入</h1>
+            <h2 class="heading-2">扫描设置</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400">配置要处理的目录路径与过滤条件</p>
+        </div>
+        <div class="p-6 space-y-6">
+            <!-- Single Folder Path (legacy single session) -->
+            <div class="relative" id="folder-path-wrapper">
+                <label for="folder_path" class="block text-lg font-medium text-gray-800 dark:text-gray-100 mb-1">目录路径</label>
+                <div class="flex rounded-lg shadow-sm ring-1 ring-gray-300 dark:ring-gray-600 focus-within:ring-2 focus-within:ring-blue-500 dark:focus-within:ring-blue-500 transition group">
+                    <input type="text" id="folder_path" class="flex-1 block w-full rounded-l-lg border-0 bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm px-4 py-2 text-gray-900 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-0 text-sm md:text-base" placeholder="请选择（或输入）需要导入的目录路径">
+                    <button id="browse_button" type="button" class="relative -ml-px btn btn-md btn-primary rounded-r-lg border-l border-gray-200 dark:border-gray-500">
+                        <svg class="h-5 w-5 text-white/80" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+                        </svg>
+                        <span>浏览</span>
+                    </button>
+                </div>
+                <!-- Recent dropdown -->
+                <div id="recent-dropdown" class="hidden absolute z-20 mt-2 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden">
+                    <div class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/50">
+                        <span>最近使用目录</span>
+                        <div class="flex gap-2">
+                            <button id="clear-history" type="button" class="text-gray-500 hover:text-red-600 dark:hover:text-red-400">清空历史</button>
+                        </div>
+                    </div>
+                    <ul id="recent-list" class="max-h-60 overflow-y-auto text-sm divide-y divide-gray-100 dark:divide-gray-700"></ul>
+                    <div id="recent-empty" class="p-3 text-xs text-gray-400 dark:text-gray-500">暂无历史</div>
+                </div>
+            </div>
+
+
+            <!-- Options -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Recursive Scan -->
+                <div class="flex items-start">
+                    <div class="flex items-center h-5">
+                        <input id="recursive" type="checkbox" class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded" checked>
+                    </div>
+                    <div class="ml-3 text-sm">
+                        <label for="recursive" class="font-medium text-gray-700 dark:text-gray-300">递归扫描</label>
+                        <p class="text-gray-500 dark:text-gray-400">扫描所有子目录</p>
+                    </div>
+                </div>
+                <!-- Date From -->
+                <div>
+                    <label for="date_from" class="block text-sm font-medium text-gray-700 dark:text-gray-300">修改时间不早于</label>
+                    <input type="date" id="date_from" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                <!-- Date To -->
+                <div>
+                    <label for="date_to" class="block text-sm font-medium text-gray-700 dark:text-gray-300">修改时间不晚于</label>
+                    <input type="date" id="date_to" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+            </div>
+
+            <!-- File Types -->
+            <div>
+                <h3 class="text-lg font-medium text-gray-800 dark:text-gray-100">文件类型</h3>
+                <div class="mt-2 flex gap-3 text-sm">
+                    <button id="select-all-types" type="button" class="btn btn-sm btn-outline">全选</button>
+                    <button id="deselect-all-types" type="button" class="btn btn-sm btn-outline">全不选</button>
+                    <button id="invert-types" type="button" class="btn btn-sm btn-outline">反选</button>
+                </div>
+                <div id="file-types" class="mt-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
+            </div>
+        </div>
+        <div class="p-6 bg-gray-50 dark:bg-gray-800/50 text-right">
+            <div class="flex gap-4 justify-end items-center">
+                <div id="session-indicator" class="text-xs text-gray-500 dark:text-gray-400 hidden select-all"></div>
+                <button id="start-scan" class="btn btn-md btn-primary shadow-sm">
+                    开始导入
+                </button>
+                <button id="stop-scan" disabled class="btn btn-md btn-danger shadow-sm">
+                    停止
+                </button>
+                <button id="stop-all" disabled class="btn btn-md btn-danger shadow-sm" style="background:#b91c1c;">
+                    全部停止
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Card -->
+    <div id="results-card" class="bg-white dark:bg-gray-800 shadow-lg dark:shadow-none rounded-xl overflow-hidden hidden">
+        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="heading-2">处理日志</h2>
+        </div>
+        <!-- Progress -->
+        <div id="progress" class="p-6 hidden">
+            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full">
+                <div id="progress-bar" class="bg-blue-600 text-xs font-medium text-blue-100 text-center p-0.5 leading-none rounded-full transition-all duration-500" style="width: 0%">0%</div>
+            </div>
+            <div id="progress-text" class="text-sm text-gray-600 dark:text-gray-400 mt-2 text-center">初始化...</div>
+        </div>
+        <!-- Log Area -->
+        <div id="log-container" class="p-6 bg-gray-100 dark:bg-gray-900/50 h-96 overflow-y-auto custom-scrollbar hidden">
+            <pre id="log-output" class="text-sm font-mono whitespace-pre-wrap"></pre>
+        </div>
+        <!-- Summary -->
+        <div id="summary" class="p-6 hidden border-t border-gray-200 dark:border-gray-700">
+        </div>
+    </div>
+</div>
+
+<script>
+    // Prepare front-end i18n keys for dynamic JS messages
+    window.I18N = window.I18N || {};
+    window.I18N.import = Object.assign({}, window.I18N.import || {}, {
+        initializing: "初始化...",
+        startProcessing: "开始导入",
+        processing: "处理中...",
+        stop: "停止",
+        stopAll: "全部停止",
+        cancelAck: "取消请求已收到",
+        cancelled: "已取消",
+        completed: "已完成",
+        connectionEstablished: "连接已建立，开始处理...",
+        streamLost: "与服务器的连接丢失，请检查后端服务。",
+        stopRequested: "已发送停止请求，等待当前文件完成...",
+        stopFailed: "停止请求失败",
+        stopError: "停止请求出错",
+        stopAllRequested: "已发送批量停止请求。会话: ",
+        stopAllFailed: "批量停止失败",
+        stopAllError: "批量停止请求出错",
+        alertNoFolder: "请先选择目录。",
+        summaryFinal: "汇总",
+        summaryTotal: "总文件数",
+        summaryProcessed: "已处理",
+        summarySkipped: "已跳过",
+        summaryErrors: "错误"
+    });
+    window.I18N.import.recent = {
+        title: "最近使用目录",
+        empty: "暂无历史",
+        clear: "清空历史",
+        remove: "移除",
+        inputClear: "清空"
+    };
+    // Conversion categories & labels (dynamic categories from API)
+    window.I18N.import.conv = {
+        native_markdown_types: "Markdown",
+        plain_text_to_markdown_types: "文本",
+        code_to_markdown_types: "代码",
+        xmind_to_markdown_types: "思维导图",
+        structured_to_markdown_types: "Office/PDF",
+        html_to_markdown_types: "HTML",
+        image_to_markdown_types: "图片",
+        video_to_markdown_types: "音视频",
+        drawio_to_markdown_types: "draw.io",
+        target_format: "目标格式",
+        ai_agent_ready: "AI Agent 预处理已启用",
+        unified_search: "统一搜索支持已启用",
+        conversion_types: "转换类型"
+    };
+
+    window.AppConfig = {
+        apiEndpoints: {
+            browseFolder: "{{ url_for('convert.browse_folder') }}",
+            convertStream: "{{ url_for('convert.convert_stream_route') }}",
+            configFileTypes: "{{ url_for('search.get_file_types_config') }}"
+        }
+    };
+
+document.addEventListener('DOMContentLoaded', function() {
+    // ... (existing file type loading logic) ...
+    const fileTypesContainer = document.getElementById('file-types');
+    fetch(window.AppConfig.apiEndpoints.configFileTypes)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const types = data.data;
+                fileTypesContainer.innerHTML = ''; // Clear existing content
+
+                const orderedCategoryKeys = types.ordered_categories || Object.keys(types).filter(k => k.endsWith('_types'));
+
+                orderedCategoryKeys.forEach(category => {
+                    const categoryNameKey = category; // e.g., native_markdown_types
+                    const localizedCategory = window.I18N.import.conv[categoryNameKey] || category.replace('_types','').replace(/_/g,' ');
+
+                    const title = document.createElement('div');
+                    title.className = 'col-span-full font-semibold text-gray-600 dark:text-gray-400 text-sm';
+                    title.textContent = localizedCategory;
+                    fileTypesContainer.appendChild(title);
+
+                    (types[category] || []).forEach(type => {
+                        const div = document.createElement('div');
+                        div.className = 'flex items-center';
+
+                        const checkbox = document.createElement('input');
+                        checkbox.id = `type-${type.ext}`;
+                        checkbox.value = type.ext;
+                        checkbox.type = 'checkbox';
+                        checkbox.className = 'h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded';
+                        checkbox.checked = true;
+
+                        const label = document.createElement('label');
+                        label.htmlFor = `type-${type.ext}`;
+                        label.className = 'ml-2 block text-sm text-gray-700 dark:text-gray-300';
+                        label.textContent = `${type.name} (.${type.ext})`;
+
+                        div.appendChild(checkbox);
+                        div.appendChild(label);
+                        fileTypesContainer.appendChild(div);
+                    });
+                });
+            }
+        });
+
+    // Select / Deselect / Invert functionality
+    function setAllFileTypeCheckboxes(checked) {
+        document.querySelectorAll('#file-types input[type=checkbox]').forEach(cb => { cb.checked = checked; });
+    }
+    function invertFileTypeCheckboxes() {
+        document.querySelectorAll('#file-types input[type=checkbox]').forEach(cb => { cb.checked = !cb.checked; });
+    }
+    document.getElementById('select-all-types').addEventListener('click', () => setAllFileTypeCheckboxes(true));
+    document.getElementById('deselect-all-types').addEventListener('click', () => setAllFileTypeCheckboxes(false));
+    document.getElementById('invert-types').addEventListener('click', () => invertFileTypeCheckboxes());
+
+    document.getElementById('browse_button').addEventListener('click', function() {
+        fetch(window.AppConfig.apiEndpoints.browseFolder)
+            .then(response => response.json())
+            .then(data => {
+                if (data.folder_path) {
+                    document.getElementById('folder_path').value = data.folder_path;
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching folder path:', error);
+                alert('Could not open folder dialog. Make sure the backend service is running.');
+            });
+    });
+
+    // Recent directories feature
+    const RECENT_KEY = 'doc_import_recent_dirs';
+    const MAX_RECENT = 12;
+    const folderInput = document.getElementById('folder_path');
+    const recentDropdown = document.getElementById('recent-dropdown');
+    const toggleRecentBtn = null; // removed button trigger
+    const recentList = document.getElementById('recent-list');
+    const recentEmpty = document.getElementById('recent-empty');
+    const clearHistoryBtn = document.getElementById('clear-history');
+    const clearInputBtn = null; // removed clear button
+
+    function loadRecent() {
+        try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch { return []; }
+    }
+    function saveRecent(list) {
+        localStorage.setItem(RECENT_KEY, JSON.stringify(list));
+    }
+    function addRecent(path) {
+        if (!path) return;
+        let list = loadRecent();
+        // Remove duplicates (case-insensitive on Windows style paths)
+        list = list.filter(p => p.toLowerCase() !== path.toLowerCase());
+        list.unshift(path);
+        if (list.length > MAX_RECENT) list = list.slice(0, MAX_RECENT);
+        saveRecent(list);
+        renderRecent();
+    }
+    function removeRecent(path) {
+        let list = loadRecent();
+        list = list.filter(p => p !== path);
+        saveRecent(list);
+        renderRecent();
+    }
+    function clearHistory() {
+        saveRecent([]);
+        renderRecent();
+    }
+    function renderRecent() {
+        const list = loadRecent();
+        recentList.innerHTML = '';
+        if (list.length === 0) {
+            recentEmpty.classList.remove('hidden');
+        } else {
+            recentEmpty.classList.add('hidden');
+        }
+        list.forEach(p => {
+            const li = document.createElement('li');
+            li.className = 'flex items-center justify-between px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700/60 cursor-pointer group';
+            const text = document.createElement('span');
+            text.className = 'truncate max-w-[75%]';
+            text.textContent = p;
+            const actions = document.createElement('div');
+            actions.className = 'flex items-center gap-2 opacity-0 group-hover:opacity-100 transition';
+            const rmBtn = document.createElement('button');
+            rmBtn.className = 'text-xs text-gray-400 hover:text-red-500';
+            rmBtn.title = window.I18N.import.recent.remove;
+            rmBtn.innerHTML = '&times;';
+            rmBtn.addEventListener('click', (e) => { e.stopPropagation(); removeRecent(p); });
+            actions.appendChild(rmBtn);
+            li.appendChild(text);
+            li.appendChild(actions);
+            li.addEventListener('click', () => { folderInput.value = p; toggleRecent(false); });
+            recentList.appendChild(li);
+        });
+    }
+    function toggleRecent(force) {
+        const show = typeof force === 'boolean' ? force : recentDropdown.classList.contains('hidden');
+        if (show) { renderRecent(); recentDropdown.classList.remove('hidden'); toggleRecentBtn.setAttribute('aria-expanded','true'); }
+        else { recentDropdown.classList.add('hidden'); toggleRecentBtn.setAttribute('aria-expanded','false'); }
+    }
+    // Open dropdown on input focus or click
+    folderInput.addEventListener('focus', () => toggleRecent(true));
+    folderInput.addEventListener('click', () => toggleRecent(true));
+    clearHistoryBtn.addEventListener('click', (e) => { e.stopPropagation(); clearHistory(); });
+    document.addEventListener('click', (e) => {
+        if (!document.getElementById('folder-path-wrapper').contains(e.target)) {
+            toggleRecent(false);
+        }
+    });
+    // Removed clear button logic
+
+    // Add to recent when a scan starts successfully (session established)
+    function markRecentOnSessionStart(path) { addRecent(path); }
+
+    let eventSource; // single mode
+    let currentSessionId = null; // single mode
+    const activeBatchSessions = new Map(); // sessionId -> {eventSource, elements}
+    const stopBtn = document.getElementById('stop-scan');
+    const stopAllBtn = document.getElementById('stop-all');
+    const sessionIndicator = document.getElementById('session-indicator');
+    // Batch UI removed
+
+    // Reconnect to existing async sessions on page load
+    function reconnectExistingSessions() {
+        fetch('/api/convert/sessions/history')
+            .then(r => r.json())
+            .then(data => {
+                if (data.status !== 'success') return;
+                const sessions = data.sessions || [];
+                if (sessions.length === 0) return;
+                const resultsCard = document.getElementById('results-card');
+                resultsCard.classList.remove('hidden');
+                const batchContainerId = 'batch-results-container';
+                let batchContainer = document.getElementById(batchContainerId);
+                if (!batchContainer) {
+                    batchContainer = document.createElement('div');
+                    batchContainer.id = batchContainerId;
+                    batchContainer.className = 'space-y-6 mt-8';
+                    document.querySelector('#results-card').insertAdjacentElement('afterend', batchContainer);
+                }
+                stopAllBtn.disabled = false;
+                sessions.forEach(s => {
+                    // Skip if already connected
+                    if (activeBatchSessions.has(s.session_id)) return;
+                    // Build card
+                    const card = document.createElement('div');
+                    card.className = 'bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700';
+                    const header = document.createElement('div');
+                    header.className = 'px-4 py-2 flex justify-between items-center border-b border-gray-200 dark:border-gray-700';
+                    header.innerHTML = `<div class='text-sm font-semibold truncate max-w-xs' title='${s.folder_path}'>${window.I18N.import.directoryLabel || "文件夹："}${s.folder_path}</div>`;
+                    const actions = document.createElement('div');
+                    const stopBtnSingle = document.createElement('button');
+                    stopBtnSingle.textContent = window.I18N.import.stop;
+                    stopBtnSingle.className = 'text-xs px-2 py-1 rounded bg-red-500 text-white disabled:opacity-40';
+                    stopBtnSingle.disabled = !!s.done;
+                    actions.appendChild(stopBtnSingle);
+                    header.appendChild(actions);
+                    card.appendChild(header);
+                    const body = document.createElement('div');
+                    body.className = 'p-3';
+                    const logId = `log-reconnect-${s.session_id}`;
+                    body.innerHTML = `
+                      <div class='text-xs text-gray-500 mb-1'>Session: ${s.session_id}${s.done ? ' (done)' : ''}</div>
+                      <div class='h-40 overflow-y-auto bg-gray-50 dark:bg-gray-900/40 rounded p-2 text-xs font-mono whitespace-pre-wrap' id='${logId}'></div>
+                    `;
+                    card.appendChild(body);
+                    batchContainer.appendChild(card);
+                    const logDiv = body.querySelector('#' + logId);
+                    // Replay history
+                    (s.history || []).forEach(evt => {
+                        logDiv.textContent += `[${evt.level}] ${evt.message}\n`;
+                    });
+                    logDiv.scrollTop = logDiv.scrollHeight;
+                    if (!s.done) {
+                        // Reattach SSE stream (need original params)
+                        const params = new URLSearchParams({
+                            folder_path: s.folder_path,
+                            recursive: String(s.params.recursive),
+                            date_from: s.params.date_from || '',
+                            date_to: s.params.date_to || '',
+                            file_types: s.params.file_types || '',
+                            async: 'true'
+                        });
+                        const es = new EventSource(window.AppConfig.apiEndpoints.convertStream + `?${params.toString()}`);
+                        es.onmessage = ev => {
+                            const dataEvt = JSON.parse(ev.data);
+                            if (dataEvt.stage === 'debug_state') return;
+                            logDiv.textContent += `[${dataEvt.level}] ${dataEvt.message}\n`;
+                            logDiv.scrollTop = logDiv.scrollHeight;
+                            if (dataEvt.stage === 'done') {
+                                stopBtnSingle.disabled = true;
+                                es.close();
+                            }
+                        };
+                        es.onerror = () => {
+                            logDiv.textContent += `[CRITICAL] ${window.I18N.import.streamLost}\n`;
+                            es.close();
+                        };
+                        activeBatchSessions.set(s.session_id, { eventSource: es, directory: s.folder_path, logDiv, stopBtn: stopBtnSingle });
+                    }
+                    stopBtnSingle.addEventListener('click', () => {
+                        stopBtnSingle.disabled = true;
+                        fetch('/api/convert/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session_id: s.session_id }) })
+                          .then(r=>r.json()).then(resp=>{
+                            if (resp.status==='success') {
+                                logDiv.textContent += `[INFO] ${window.I18N.import.stopRequested}\n`;
+                            } else {
+                                logDiv.textContent += `[ERROR] ${window.I18N.import.stopFailed}: ${resp.message}\n`;
+                            }
+                          }).catch(err=>{
+                            logDiv.textContent += `[ERROR] ${window.I18N.import.stopError}: ${err}\n`;
+                          });
+                    });
+                });
+            });
+    }
+    reconnectExistingSessions();
+
+    document.getElementById('start-scan').addEventListener('click', function() {
+        if (eventSource && eventSource.readyState !== EventSource.CLOSED) {
+            eventSource.close();
+        }
+
+        const folderPath = document.getElementById('folder_path').value;
+        const recursive = document.getElementById('recursive').checked;
+        const dateFrom = document.getElementById('date_from').value;
+        const dateTo = document.getElementById('date_to').value;
+        const selectedTypes = Array.from(document.querySelectorAll('#file-types input[type=checkbox]:checked')).map(cb => cb.value);
+
+        if (!folderPath) {
+            alert(window.I18N.import.alertNoFolder);
+            return;
+        }
+
+        const resultsCard = document.getElementById('results-card');
+        const progress = document.getElementById('progress');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const logContainer = document.getElementById('log-container');
+        const logOutput = document.getElementById('log-output');
+        const summary = document.getElementById('summary');
+        const startButton = document.getElementById('start-scan');
+
+        resultsCard.classList.remove('hidden');
+        progress.classList.remove('hidden');
+        logContainer.classList.remove('hidden');
+        summary.classList.add('hidden');
+        logOutput.innerHTML = '';
+        
+        progressBar.style.width = '0%';
+        progressBar.textContent = '0%';
+    progressText.textContent = window.I18N.import.initializing;
+    startButton.disabled = true;
+    startButton.textContent = window.I18N.import.processing;
+    stopBtn.disabled = false;
+
+        const params = new URLSearchParams({
+            folder_path: folderPath,
+            recursive: recursive,
+            date_from: dateFrom,
+            date_to: dateTo,
+            file_types: selectedTypes.join(',')
+        });
+
+        eventSource = new EventSource(window.AppConfig.apiEndpoints.convertStream + `?${params.toString()}`);
+
+        eventSource.onopen = function() {
+        logOutput.innerHTML += `<span class="text-green-400">[INFO]</span> ${window.I18N.import.connectionEstablished}\n`;
+        };
+
+        eventSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            if (!currentSessionId && data.session_id) {
+                currentSessionId = data.session_id;
+                sessionIndicator.textContent = `Session: ${currentSessionId}`;
+                sessionIndicator.classList.remove('hidden');
+                stopAllBtn.disabled = false; // At least one session active
+                // Record recent directory on first session id reception
+                markRecentOnSessionStart(document.getElementById('folder_path').value.trim());
+            }
+            // Debug heartbeat events (stage=debug_state) - show but lighter
+            if (data.stage === 'debug_state') {
+                logOutput.innerHTML += `<span class="text-gray-500">[DEBUG]</span> ${data.message}\n`;
+                logContainer.scrollTop = logContainer.scrollHeight;
+            }
+
+            let colorClass = 'text-gray-400';
+            if (data.level === 'info') colorClass = 'text-blue-400';
+            if (data.level === 'warning') colorClass = 'text-yellow-400';
+            if (data.level === 'error') colorClass = 'text-red-400';
+            if (data.level === 'critical') colorClass = 'text-red-600 font-bold';
+
+            logOutput.innerHTML += `<span class="${colorClass}">[${data.level.toUpperCase()}]</span> ${data.message}\n`;
+            logContainer.scrollTop = logContainer.scrollHeight;
+
+            if (data.stage === 'file_processing' && data.progress) {
+                progressBar.style.width = `${data.progress}%`;
+                progressBar.textContent = `${data.progress}%`;
+                progressText.textContent = `Processing: ${data.current_file}`;
+            }
+
+            if (data.stage === 'cancel_ack') {
+                progressText.textContent = window.I18N.import.cancelAck;
+                logOutput.innerHTML += `<span class="text-yellow-400">[INFO]</span> ${window.I18N.import.cancelAck}\n`;
+            }
+
+            if (data.stage === 'cancelled') {
+                progressText.textContent = window.I18N.import.cancelled;
+                logOutput.innerHTML += `<span class="text-yellow-400">[INFO]</span> ${window.I18N.import.cancelled}\n`;
+            }
+
+            if (data.stage === 'done') {
+                progressText.textContent = window.I18N.import.completed;
+                progressBar.style.width = `100%`;
+                progressBar.textContent = `100%`;
+                
+                const scanSummary = data.summary;
+                summary.innerHTML = `
+                    <h3 class="text-lg font-semibold mb-4">${window.I18N.import.summaryFinal}</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
+                        <div>
+                            <div class="text-2xl font-bold text-gray-800 dark:text-gray-100">${scanSummary.total_files}</div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">${window.I18N.import.summaryTotal}</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold text-green-500">${scanSummary.processed_files}</div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">${window.I18N.import.summaryProcessed}</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold text-yellow-500">${scanSummary.skipped_files}</div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">${window.I18N.import.summarySkipped}</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold text-red-500">${scanSummary.error_files}</div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">${window.I18N.import.summaryErrors}</div>
+                        </div>
+                    </div>
+                `;
+                summary.classList.remove('hidden');
+                
+                eventSource.close();
+                startButton.disabled = false;
+                startButton.textContent = window.I18N.import.startProcessing;
+                stopBtn.disabled = true;
+                stopAllBtn.disabled = true;
+                sessionIndicator.classList.add('hidden');
+                currentSessionId = null;
+            }
+        };
+
+        eventSource.onerror = function() {
+            logOutput.innerHTML += `<span class="text-red-600 font-bold">[CRITICAL]</span> ${window.I18N.import.streamLost}\n`;
+            logContainer.scrollTop = logContainer.scrollHeight;
+            eventSource.close();
+            startButton.disabled = false;
+            startButton.textContent = window.I18N.import.startProcessing;
+            stopBtn.disabled = true;
+        };
+    });
+
+    stopBtn.addEventListener('click', function() {
+        if (!eventSource || eventSource.readyState === EventSource.CLOSED) return;
+        stopBtn.disabled = true;
+        const payload = currentSessionId ? { session_id: currentSessionId } : {};
+        fetch('/api/convert/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+            .then(r => r.json())
+            .then(data => {
+                const logOutput = document.getElementById('log-output');
+                if (data.status === 'success') {
+                    logOutput.innerHTML += `<span class="text-yellow-400">[INFO]</span> ${window.I18N.import.stopRequested}\n`;
+                } else {
+                    logOutput.innerHTML += `<span class="text-red-400">[ERROR]</span> ${window.I18N.import.stopFailed}: ${data.message}\n`;
+                }
+            })
+            .catch(err => {
+                const logOutput = document.getElementById('log-output');
+                logOutput.innerHTML += `<span class="text-red-400">[ERROR]</span> ${window.I18N.import.stopError}: ${err}\n`;
+            });
+    });
+
+    stopAllBtn.addEventListener('click', function() {
+        stopAllBtn.disabled = true;
+        fetch('/api/convert/stop-all', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                const logOutput = document.getElementById('log-output');
+                if (data.status === 'success') {
+                    logOutput.innerHTML += `<span class="text-yellow-400">[INFO]</span> ${window.I18N.import.stopAllRequested}${(data.sessions || []).join(', ')}\n`;
+                } else {
+                    logOutput.innerHTML += `<span class="text-red-400">[ERROR]</span> ${window.I18N.import.stopAllFailed}: ${data.message}\n`;
+                }
+            })
+            .catch(err => {
+                const logOutput = document.getElementById('log-output');
+                logOutput.innerHTML += `<span class="text-red-400">[ERROR]</span> ${window.I18N.import.stopAllError}: ${err}\n`;
+            });
+    });
+
+});
+</script>
+{% endblock %}

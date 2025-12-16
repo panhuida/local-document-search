@@ -329,7 +329,7 @@ def check_directories() -> Tuple[bool, str]:
     dirs = {
         'logs': '日志目录',
         'migrations': '数据库迁移',
-        'app': '应用代码',
+        'src': '源代码',
         'scripts': '脚本',
     }
     

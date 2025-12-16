@@ -1,17 +1,22 @@
-from app import create_app
-from app.extensions import db
-from app.models import Document, ConversionType
+﻿from local_document_search import create_app
+from local_document_search.extensions import db
+from local_document_search.models import Document, ConversionType
 from datetime import datetime
-from app.services.search_service import SearchParams, search_documents
+from local_document_search.services.search_service import SearchParams, search_documents
 
+
+from local_document_search.config import Config
+
+class TestConfig(Config):
+    TESTING = True
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
 
 def _setup_app():
-    app = create_app()
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
-    app.config['TESTING'] = True
+    app = create_app(TestConfig)
     with app.app_context():
         db.create_all()
     return app
+
 
 
 def test_conversion_type_filtering():
@@ -39,3 +44,4 @@ def test_conversion_type_filtering():
         pagination2 = search_documents(params2)
         names = [i[0].file_name if isinstance(i, tuple) else i.file_name for i in pagination2.items]
         assert set(names) == {'a.md', 'b.txt'}
+

@@ -1,4 +1,4 @@
-"""End-to-end smoke validation script.
+﻿"""End-to-end smoke validation script.
 
 Usage (Windows cmd):
   set FLASK_ENV=development
@@ -21,15 +21,17 @@ from __future__ import annotations
 
 import os
 import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 import tempfile
+
 from typing import List, Dict, Any
 
-from app import create_app
-from app.extensions import db
-from app.models import Document, ConversionType
-from app.services.ingestion_manager import run_local_ingestion, request_cancel_ingestion
-from app.services.search_service import SearchParams, search_documents
-from app.services.converters import convert_to_markdown
+from local_document_search import create_app
+from local_document_search.extensions import db
+from local_document_search.models import Document, ConversionType
+from local_document_search.services.ingestion_manager import run_local_ingestion, request_cancel_ingestion
+from local_document_search.services.search_service import SearchParams, search_documents
+from local_document_search.services.converters import convert_to_markdown
 
 
 def _assert(condition: bool, message: str, errors: List[str]):
@@ -149,3 +151,4 @@ def main() -> int:
 
 if __name__ == '__main__':
     sys.exit(main())
+
