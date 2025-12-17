@@ -3,35 +3,35 @@ name = "local-document-search"
 version = "0.1.0"
 description = "Local Document Search Application"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
-    "Flask",
-    "python-dotenv",
-    "SQLAlchemy",
-    "psycopg2-binary",
-    "Flask-Migrate",
-    "markitdown[all]",
-    "mdit-py-plugins",
-    "Markdown",
-    "requests",
-    "Flask-Cors",
-    "tenacity",
-    "beautifulsoup4",
-    "lxml",
-    "markdownify",
-    "markdown-it-py[linkify]",
-    "google-genai",
-    "openai",
-    "pytesseract",
-    "pillow",
-    "faster-whisper",
-    "dashscope",
-    "pywin32; sys_platform == 'win32'",
+    "Flask>=3.0.0",
+    "python-dotenv>=1.0.0",
+    "SQLAlchemy>=2.0.0",
+    "psycopg2-binary>=2.9.0",
+    "Flask-Migrate>=4.0.0",
+    "markitdown[all]>=0.0.1a1",
+    "mdit-py-plugins>=0.4.0",
+    "Markdown>=3.5.0",
+    "requests>=2.31.0",
+    "Flask-Cors>=4.0.0",
+    "tenacity>=8.2.0",
+    "beautifulsoup4>=4.12.0",
+    "lxml>=5.1.0",
+    "markdownify>=0.11.0",
+    "markdown-it-py[linkify]>=3.0.0",
+    "google-genai>=0.3.0",
+    "openai>=1.12.0",
+    "pytesseract>=0.3.10",
+    "pillow>=10.2.0",
+    "faster-whisper>=1.0.0",
+    "dashscope>=1.14.0",
+    "pywin32>=306; sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest",
+    "pytest>=8.0.0",
 ]
 
 [build-system]

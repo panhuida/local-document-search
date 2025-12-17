@@ -1,7 +1,7 @@
 <h1 align="center">🔍本地文档搜索助手</h1>
 
 <p align="center">
-  <strong>将本地文档、思维导图、Joplin、公众号文章、图片的内容提取转换成 Markdown 并创建索引进行检索</strong>
+  <strong>将本地文档、思维导图、Joplin、图片的内容提取转换成 Markdown 并创建索引进行检索</strong>
 </p>
 
 <p align="center">
@@ -63,16 +63,25 @@
 
 ### 2. 克隆与安装依赖
 
+本项目使用 `uv` 进行依赖管理。
+
 ```bash
 # 1. 克隆项目
 git clone <your-repository-url>
 cd local_document_search
 
-# 2. (可选但推荐) 创建并激活 Python 虚拟环境
-python -m venv venv
-# Windows: .\venv\Scripts\activate | macOS/Linux: source venv/bin/activate
+# 2. 安装 uv (如果尚未安装)
+# Windows (PowerShell)
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# 3. 安装依赖
+# 3. 同步依赖环境
+# 这将根据 uv.lock 文件安装所有依赖并自动创建虚拟环境
+uv sync
+
+# 如需使用 pip 安装（备选方案）
+# 建议先创建并激活虚拟环境，再安装：
 pip install -r requirements.txt
 ```
 
@@ -176,61 +185,66 @@ CREATE INDEX ix_documents_source ON public.documents USING btree (source);
 
 
 
-#### 采集公众号数据表
+### 6. 配置 本地 Tailwind CSS（可选）
 
-**wechat_list  公众号清单表**
+无需 npm，使用官方独立二进制（已放在项目根）。
 
-```sql
-CREATE TABLE public.wechat_list (
-	id serial4 NOT NULL,
-	wechat_account_name varchar(100) NOT NULL,
-	memo varchar(200) NULL,
-	start_date date NULL,
-	end_date date NULL,
-	fakeid varchar(100) NULL,
-	"token" varchar(100) NULL,
-	cookie text NULL,
-	"begin" int4 NULL,
-	count int4 NULL,
-	create_time timestamptz DEFAULT now() NULL,
-	update_time timestamptz DEFAULT now() NULL,
-	CONSTRAINT wechat_list_pkey PRIMARY KEY (id)
-);
-```
+https://github.com/tailwindlabs/tailwindcss/discussions/15855
 
-**wechat_article_list  公众号文章清单表**
+1) 下载 Tailwind
 
-```shell
-CREATE TABLE public.wechat_article_list (
-	id serial4 NOT NULL,
-	wechat_list_id int4 NULL,
-	wechat_account_name varchar(100) NULL,
-	article_id varchar(100) NULL,
-	article_title varchar(255) NULL,
-	article_cover varchar(500) NULL,
-	article_link varchar(500) NULL,
-	article_author_name varchar(100) NULL,
-	article_is_deleted varchar(10) NULL,
-	is_downloaded varchar(10) NULL,
-	article_create_time timestamptz NULL,
-	article_update_time timestamptz NULL,
-	create_time timestamptz DEFAULT now() NULL,
-	update_time timestamptz DEFAULT now() NULL,
-	CONSTRAINT wechat_article_list_pkey PRIMARY KEY (id)
-);
-```
+- 地址：https://github.com/tailwindlabs/tailwindcss/releases/
+
+- 放置 `tailwindcss.exe` 项目根目录。
+
+2) 输入样式文件
+
+- 路径： [src/local_document_search/static/src/in.css](src/local_document_search/static/src/in.css)
+- 内容核心：`@import "tailwindcss" source("../../..");` ；如需禁用预设 base，可按文件中注释替换。
+
+3) 生成产物
+
+- 目录： [src/local_document_search/static/dist/](src/local_document_search/static/dist)
+
+- 一次构建（压缩）：
+
+  ```powershell
+  .\tailwindcss.exe -i .\src\local_document_search\static\src\in.css \
+    -o .\src\local_document_search\static\dist\main.css --minify
+  ```
+
+- 开发监听：命令末尾改为 `--watch`（可去掉 `--minify`）。
+
+4) 模板引用
+
+- 已在 [src/local_document_search/templates/base.html](src/local_document_search/templates/base.html#L6-L7) 使用 `{{ url_for('static', filename='dist/main.css') }}`。
+
+5) 版本查看
+
+- `./tailwindcss.exe --version`（当前使用 v4.1.18）。
+
+6) Git 忽略
+
+- `.gitignore` 已忽略 `tailwindcss.exe` 与 `src/local_document_search/static/dist/`。
+
+7) 本地 / CDN 切换
+
+- 模板已默认使用本地构建 CSS：`{{ url_for('static', filename='dist/main.css') }}`。
+- 若想改用 CDN（快速试用）：在 [src/local_document_search/templates/base.html](src/local_document_search/templates/base.html#L6-L8) 注释本地链接，启用注释示例 `<script src="https://cdn.tailwindcss.com"></script>`。
 
 
 
-### 6. 启动 Web 应用
+### 7. 启动 Web 应用
 
 在项目根目录下运行：
 
 ```bash
-python run.py
+uv run run.py
 ```
 
 打开浏览器，访问 `http://127.0.0.1:5000`。
+
+
 
 
 
@@ -240,23 +254,25 @@ python run.py
 
 ```
 local_document_search/
-├── app/                      # Flask 应用核心代码
-│   ├── routes/               # 路由蓝图 (视图函数)
-│   ├── services/             # 核心业务逻辑 (文件扫描, 转换, 搜索)
-│   ├── static/               # 静态文件
-│   ├── templates/            # HTML 模板
-│   ├── utils/                # 辅助工具函数
-│   ├── __init__.py           # 应用工厂函数
-│   ├── config.py            # 配置文件
-│   └── models.py             # SQLAlchemy 数据模型
-├── logs/               	  # 运行日志
-├── migrations/               # Flask-Migrate 数据库迁移脚本
-├── scripts/                  # 辅助脚本 (如 Joplin 导入)
-├── tests/                    # 单元测试
-├── .env                      # 环境变量 (需从 .env.example 复制创建)
-├── .env.example              # 环境变量模板
-├── requirements.txt          # Python 依赖
-└── run.py                    # 应用启动入口
+├── src/
+│   └── local_document_search/  # 源代码根目录
+│       ├── routes/             # 路由蓝图 (视图函数)
+│       ├── services/           # 核心业务逻辑 (文件扫描, 转换, 搜索)
+│       ├── static/             # 静态文件
+│       ├── templates/          # HTML 模板
+│       ├── utils/              # 辅助工具函数
+│       ├── __init__.py         # 应用工厂函数
+│       ├── config.py           # 配置文件
+│       └── models.py           # SQLAlchemy 数据模型
+├── logs/               	    # 运行日志
+├── migrations/                 # Flask-Migrate 数据库迁移脚本
+├── scripts/                    # 辅助脚本 (如 Joplin 导入)
+├── tests/                      # 单元测试
+├── .env                        # 环境变量 (需从 .env.example 复制创建)
+├── .env.example                # 环境变量模板
+├── pyproject.toml              # 项目配置与依赖管理
+├── uv.lock                     # 依赖版本锁定文件
+└── run.py                      # 应用启动入口
 ```
 
 
@@ -319,27 +335,13 @@ IMAGE_PROVIDER_CHAIN=openai,google-genai,local
 
 
 
-### 3. 界面多语言 (简体中文 / English)
-
-系统内置一个轻量级自定义 i18n 机制，无第三方依赖：
-
-访问示例：
-
-```
-http://127.0.0.1:5000/search?lang=en
-http://127.0.0.1:5000/process?lang=zh
-```
-
-
-
-### 4. 配置项速览（节选）
+### 3. 配置项速览（节选）
 
 | 变量                        | 说明                                                | 默认                     |
 | --------------------------- | --------------------------------------------------- | ------------------------ |
 | `DATABASE_URL`              | PostgreSQL 连接串                                   | -                        |
 | `LOG_LEVEL`                 | 日志等级                                            | INFO                     |
 | `LOG_TIME_FORMAT`           | 日志时间格式                                        | `%Y-%m-%d %H:%M:%S`      |
-| `DOWNLOAD_PATH`             | 微信文章下载根目录                                  | `downloads`              |
 | `IMAGE_CAPTION_PROVIDER`    | 图片描述 Provider (`local`/`openai`/`google-genai`) | `google-genai`           |
 | `IMAGE_PROVIDER_CHAIN`      | Provider 降级链，逗号分隔                           | 空                       |
 | `ENABLE_IMAGE_FRONT_MATTER` | 是否写入图片 Front Matter                           | true                     |
@@ -351,7 +353,7 @@ http://127.0.0.1:5000/process?lang=zh
 
 
 
-### 5. 部署到 Ubuntu 24.04 的注意事项
+### 4. 部署到 Ubuntu 24.04 的注意事项
 
 在 Ubuntu Server 或其他 Linux 环境中部署本项目时，常见问题是某些依赖在 Windows 上可用（例如 `pywin32`、Windows COM 自动化）或者需要 GUI 支持的库（例如 `tkinter`）在无头服务器上不可用。下面是建议的处理方式：
 

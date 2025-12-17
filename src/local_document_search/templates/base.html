@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>{% block title %}DocSearch{% endblock %}</title>
-    <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
-    <script src="https://cdn.tailwindcss.com"></script>
+     <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
+     /* Tailwind 本地构建版；如需改用 CDN，可注释本行并启用下方示例： */
+     /* <script src="https://cdn.tailwindcss.com"></script> */
+     <link rel="stylesheet" href="{{ url_for('static', filename='dist/main.css') }}">
     <script>
         // On page load or when changing themes, best to add inline in `head` to avoid FOUC
         if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {

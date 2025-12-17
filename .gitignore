@@ -170,3 +170,7 @@ src/.DS_Store
 # logs
 logs/
 *.log
+
+# Tailwind standalone CLI artifacts
+tailwindcss.exe
+src/local_document_search/static/dist/

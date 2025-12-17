@@ -1,0 +1,9 @@
+/* Tailwind v4 standalone CLI entry; scans sources from project root */
+@import "tailwindcss" source("../../..");
+
+/* Uncomment to drop preflight base styles */
+/*
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme) source("../../..");
+@import "tailwindcss/utilities.css" layer(utilities) source("../../..");
+*/
