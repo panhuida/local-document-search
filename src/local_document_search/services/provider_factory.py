@@ -1,13 +1,15 @@
-"""Provider factory for MarkItDown instances (OpenAI / Gemini / Local).
-
-Separated from converters to allow reuse in image_converter without circular imports.
-"""
-from typing import Dict
+"""Provider factory for MarkItDown instances (OpenAI / Gemini / Local) and conversion service."""
+from typing import Dict, TYPE_CHECKING
 from flask import current_app
 from markitdown import MarkItDown
 from .gemini_adapter import build_markitdown_with_gemini
 from .openai_adapter import build_markitdown_with_openai
 from .qwen_adapter import build_markitdown_with_qwen
+
+if TYPE_CHECKING:  # Avoid runtime import cycles
+    from local_document_search.services.conversion.interfaces import ConversionService
+else:
+    ConversionService = object  # runtime placeholder to satisfy type checker references
 
 _md_instances: Dict[str, MarkItDown] = {
     'google-genai': None,  # Gemini
@@ -56,3 +58,10 @@ def get_markitdown_instance(provider: str) -> MarkItDown:
     if _md_instances['local'] is None:
         _md_instances['local'] = MarkItDown()
     return _md_instances['local']
+
+
+def build_conversion_service() -> ConversionService:
+    """Factory for conversion service; wraps legacy convert_to_markdown for DI-friendly use."""
+    from local_document_search.services.conversion.impl_default import DefaultConversionService
+
+    return DefaultConversionService()

@@ -1,5 +1,5 @@
-﻿from flask import Blueprint, render_template, request, current_app
-from local_document_search.models import Document
+from flask import Blueprint, render_template, request, current_app
+from local_document_search.services.search_service import fetch_failed_documents
 
 bp = Blueprint('main', __name__)
 
@@ -19,27 +19,11 @@ def search_page():
 @bp.route('/errors')
 def errors_page():
     try:
-        # Query for documents with a 'failed' status
-        query = Document.query.filter_by(status='failed')
-
-        # Search by filename
         file_name_search = request.args.get('file_name', '')
-        if file_name_search:
-            query = query.filter(Document.file_name.ilike(f'%{file_name_search}%'))
-
-        # Filter by date
         date_from = request.args.get('date_from', '')
-        if date_from:
-            query = query.filter(Document.updated_at >= date_from)
-        
         date_to = request.args.get('date_to', '')
-        if date_to:
-            query = query.filter(Document.updated_at <= date_to)
 
-        # Sort by updated_at
-        query = query.order_by(Document.updated_at.desc())
-
-        errors = query.all()
+        errors = fetch_failed_documents(file_name_search, date_from, date_to).all()
 
         return render_template('errors.html', errors=errors, file_name_search=file_name_search, date_from=date_from, date_to=date_to)
     except Exception as e:

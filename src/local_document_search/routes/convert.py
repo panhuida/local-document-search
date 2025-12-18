@@ -32,7 +32,7 @@ from local_document_search.services.ingestion_manager import (
     start_async_ingestion,
     stream_async_session,
 )
-from local_document_search.services.converters import convert_to_markdown
+from local_document_search.services.provider_factory import build_conversion_service
 from local_document_search.models import Document
 from local_document_search.extensions import db
 
@@ -292,7 +292,8 @@ def retry_conversion(doc_id):
         return jsonify({'status': 'error', 'message': 'Document is not in a failed state.'}), 400
     try:
         current_app.logger.info(f"Retrying conversion for file: {doc.file_path}")
-        result = convert_to_markdown(doc.file_path, doc.file_type)
+        service = build_conversion_service()
+        result = service.convert(doc.file_path, doc.file_type)
         if not result.success:
             doc.error_message = result.error
             doc.status = 'failed'

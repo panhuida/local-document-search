@@ -4,7 +4,7 @@ import subprocess
 import time
 import re
 from flask import Blueprint, request, jsonify, current_app
-from local_document_search.services.search_service import search_documents, SearchParams
+from local_document_search.services.search_service import search_documents, build_search_params
 from markdown_it import MarkdownIt
 from local_document_search.extensions import db
 
@@ -87,49 +87,21 @@ def search_route():
     start_time = time.time()
     
     try:
-        keyword = request.args.get('keyword')
-        sort_by = request.args.get('sort_by', current_app.config['SEARCH_DEFAULT_SORT_BY'])
-        search_type = request.args.get('search_type', 'full_text')
-        sort_order = request.args.get('sort_order', 'desc')
-        page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', current_app.config['SEARCH_DEFAULT_PER_PAGE'], type=int)
-        file_types = request.args.get('file_types')
-        conversion_types_param = request.args.get('conversion_types')  # comma-separated ints
-        date_from = request.args.get('date_from')
-        date_to = request.args.get('date_to')
-        source = request.args.get('source')
+        search_params = build_search_params(request.args, current_app.config)
 
         logger.info(
-            f"Search request received. Keyword: '{keyword}', Type: '{search_type}', "
-            f"Sort: '{sort_by}'/'{sort_order}', Page: {page}, PerPage: {per_page}, "
-            f"FileTypes: '{file_types}', DateFrom: '{date_from}', DateTo: '{date_to}', "
-            f"Source: '{source}'"
-        )
-
-        if file_types:
-            file_types = file_types.split(',')
-            # 归一化为小写并去空
-            file_types = [ft.strip().lower() for ft in file_types if ft.strip()]
-        logger.debug(f"Parsed file_types list: {file_types}")
-        conversion_types = None
-        if conversion_types_param:
-            try:
-                conversion_types = [int(x) for x in conversion_types_param.split(',') if x.strip().isdigit()]
-            except Exception:
-                conversion_types = None
-
-        search_params = SearchParams(
-            keyword=keyword,
-            search_type=search_type,
-            sort_by=sort_by,
-            sort_order=sort_order,
-            page=page,
-            per_page=per_page,
-            file_types=file_types,
-            date_from=date_from,
-            date_to=date_to,
-            source=source,
-            conversion_types=conversion_types
+            "Search request received. Keyword: '%s', Type: '%s', Sort: '%s'/'%s', Page: %s, PerPage: %s, FileTypes: '%s', DateFrom: '%s', DateTo: '%s', Source: '%s', ConversionTypes: '%s'",
+            search_params.keyword,
+            search_params.search_type,
+            search_params.sort_by,
+            search_params.sort_order,
+            search_params.page,
+            search_params.per_page,
+            search_params.file_types,
+            search_params.date_from,
+            search_params.date_to,
+            search_params.source,
+            search_params.conversion_types,
         )
 
         pagination = search_documents(params=search_params)
@@ -139,13 +111,13 @@ def search_route():
         results = []
         for item in pagination.items:
             # Unpack the document and score if the search returns scores
-            if (search_type == 'full_text' or search_type == 'trigram') and keyword:
+            if (search_params.search_type == 'full_text' or search_params.search_type == 'trigram') and search_params.keyword:
                 doc, score = item
             else:
                 doc, score = item, None
 
-            snippet = create_highlighted_snippet(doc.markdown_content, keyword)
-            highlighted_filename = highlight_text(doc.file_name, keyword)
+            snippet = create_highlighted_snippet(doc.markdown_content, search_params.keyword)
+            highlighted_filename = highlight_text(doc.file_name, search_params.keyword)
             result_item = {
                 'id': doc.id,
                 'filename': highlighted_filename,
@@ -165,9 +137,9 @@ def search_route():
             'status': 'success',
             'data': {
                 'search_info': {
-                    'keyword': keyword,
-                    'search_type': search_type,
-                    'sort_by': sort_by,
+                    'keyword': search_params.keyword,
+                    'search_type': search_params.search_type,
+                    'sort_by': search_params.sort_by,
                     'total_results': pagination.total,
                     'search_time': search_time
                 },

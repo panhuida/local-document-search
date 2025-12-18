@@ -244,6 +244,32 @@ uv run run.py
 
 打开浏览器，访问 `http://127.0.0.1:5000`。
 
+或使用新增入口（更贴近常规 Flask 启动方式）：
+
+```bash
+python -m local_document_search.app
+```
+
+### 7. 命令行 CLI（conversion 试点）
+
+> 依赖 click 已加入 requirements.txt。
+
+转换单个文件为 Markdown（默认输出到 stdout，可用 -o 写入文件）：
+
+```bash
+python -m local_document_search.cli convert-file /path/to/file.pdf -o out.md
+# 或指定文件类型（默认自动根据扩展名）
+python -m local_document_search.cli convert-file /path/to/file --file-type pdf
+```
+
+批量转换目录（保留目录结构，输出 .md 到目标目录）：
+
+```bash
+python -m local_document_search.cli convert-dir /path/to/src -o /path/to/out \
+  --extensions pdf,docx,md,txt --recursive
+```
+不指定 --extensions 时默认使用 Config.SUPPORTED_FILE_TYPES。
+
 
 
 

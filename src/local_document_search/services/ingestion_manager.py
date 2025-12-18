@@ -21,7 +21,7 @@ from local_document_search.extensions import db
 from local_document_search.models import Document, IngestState
 from local_document_search.utils.file_utils import get_file_metadata
 from local_document_search.services.filesystem_scanner import find_files
-from local_document_search.services.converters import convert_to_markdown
+from local_document_search.services.provider_factory import build_conversion_service
 from local_document_search.services.conversion_result import ConversionResult
 from local_document_search.services.log_events import LogEvent
 
@@ -114,6 +114,7 @@ def run_local_ingestion(folder_path, date_from_str, date_to_str, recursive, file
     """Generator yielding structured SSE dicts for ingestion progress."""
     logger = current_app.logger
     start_time = datetime.now(timezone.utc)
+    conversion_service = build_conversion_service()
     session_id = start_session()
 
     # IngestState fetch / create
@@ -218,7 +219,7 @@ def run_local_ingestion(folder_path, date_from_str, date_to_str, recursive, file
                 yield {'level': 'info', 'message': f'Skipping unchanged file: {file_path}', 'stage': LogEvent.FILE_SKIP.value, 'reason': 'unchanged', 'session_id': session_id}
                 continue
 
-            result: ConversionResult = convert_to_markdown(file_path, metadata['file_type'])
+            result: ConversionResult = conversion_service.convert(file_path, metadata['file_type'])
             if not result.success:
                 error_files += 1
                 if existing_doc:
@@ -315,6 +316,7 @@ def start_async_ingestion(folder_path, date_from_str, date_to_str, recursive, fi
     SSE clients can then poll events via poll_async_session(session_id) generator.
     """
     logger = current_app.logger
+    conversion_service = build_conversion_service()
     session_id = start_session()
     sessions = _get_sessions()
     sessions[session_id]['mode'] = 'async'
@@ -421,7 +423,7 @@ def start_async_ingestion(folder_path, date_from_str, date_to_str, recursive, fi
                         _enqueue(session_id, {'level': 'info', 'message': f'Skipping unchanged file: {file_path}', 'stage': LogEvent.FILE_SKIP.value, 'reason': 'unchanged'})
                         continue
 
-                    result: ConversionResult = convert_to_markdown(file_path, metadata['file_type'])
+                    result: ConversionResult = conversion_service.convert(file_path, metadata['file_type'])
                     if not result.success:
                         error_files += 1
                         if existing_doc:

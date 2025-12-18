@@ -69,6 +69,6 @@ echo   按 Ctrl+C 停止服务
 echo ========================================
 echo.
 
-python run.py
+python -m local_document_search.app
 
 pause

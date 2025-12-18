@@ -57,4 +57,4 @@ echo -e "  访问地址: http://127.0.0.1:5000"
 echo -e "  按 Ctrl+C 停止服务"
 echo -e "========================================${NC}\n"
 
-python3 run.py
+python3 -m local_document_search.app

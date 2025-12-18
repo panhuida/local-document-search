@@ -2,10 +2,10 @@ import os
 import logging
 from dotenv import load_dotenv
 
-# 加载 .env 文件
-# src/local_document_search/config.py -> src/local_document_search -> src -> root
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-load_dotenv(os.path.join(project_root, '.env'))
+# Lazy load .env to avoid I/O during module import; call load_environment() from app factory.
+def load_environment():
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+    load_dotenv(os.path.join(project_root, '.env'))
 
 
 # --- File Type Configuration (Single Source of Truth) ---

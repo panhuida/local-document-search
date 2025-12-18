@@ -1,13 +1,17 @@
 ﻿import re
 import time
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Mapping
 
 from flask import current_app
 from local_document_search.models import Document
 from local_document_search.extensions import db
 from sqlalchemy import func, cast, TEXT, literal_column
 import sqlalchemy as sa
+
+ALLOWED_SORT_BY = {"relevance", "filename", "mtime"}
+ALLOWED_SORT_ORDER = {"asc", "desc"}
+ALLOWED_SEARCH_TYPES = {"full_text", "trigram"}
 
 @dataclass
 class SearchParams:
@@ -23,6 +27,72 @@ class SearchParams:
     date_to: Optional[str] = None
     source: Optional[str] = None
     conversion_types: Optional[List[int]] = None
+
+    def normalized(self, app_config) -> "SearchParams":
+        """Return a normalized copy with safe defaults."""
+        sort_by = self.sort_by if self.sort_by in ALLOWED_SORT_BY else app_config.get("SEARCH_DEFAULT_SORT_BY", "relevance")
+        sort_order = self.sort_order if self.sort_order in ALLOWED_SORT_ORDER else "desc"
+        search_type = self.search_type if self.search_type in ALLOWED_SEARCH_TYPES else "full_text"
+        page = self.page if isinstance(self.page, int) and self.page > 0 else 1
+        per_page_default = app_config.get("SEARCH_DEFAULT_PER_PAGE", 20)
+        per_page = self.per_page if isinstance(self.per_page, int) and self.per_page > 0 else per_page_default
+        return SearchParams(
+            keyword=self.keyword,
+            search_type=search_type,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            page=page,
+            per_page=per_page,
+            file_types=self.file_types,
+            date_from=self.date_from,
+            date_to=self.date_to,
+            source=self.source,
+            conversion_types=self.conversion_types,
+        )
+
+
+def build_search_params(args: Mapping, app_config) -> SearchParams:
+    """Parse and normalize request args into SearchParams."""
+    keyword = args.get("keyword")
+    sort_by = args.get("sort_by", app_config.get("SEARCH_DEFAULT_SORT_BY", "relevance"))
+    sort_order = str(args.get("sort_order", "desc")).lower()
+    search_type = args.get("search_type", "full_text")
+    try:
+        page = int(args.get("page", 1))
+    except Exception:
+        page = 1
+    try:
+        per_page = int(args.get("per_page", app_config.get("SEARCH_DEFAULT_PER_PAGE", 20)))
+    except Exception:
+        per_page = app_config.get("SEARCH_DEFAULT_PER_PAGE", 20)
+
+    file_types_raw = args.get("file_types")
+    file_types = None
+    if file_types_raw:
+        file_types = [ft.strip().lower() for ft in str(file_types_raw).split(",") if ft.strip()]
+
+    conv_types_raw = args.get("conversion_types")
+    conversion_types = None
+    if conv_types_raw:
+        try:
+            conversion_types = [int(x) for x in str(conv_types_raw).split(",") if str(x).strip().isdigit()]
+        except Exception:
+            conversion_types = None
+
+    params = SearchParams(
+        keyword=keyword,
+        search_type=search_type,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        page=page,
+        per_page=per_page,
+        file_types=file_types,
+        date_from=args.get("date_from"),
+        date_to=args.get("date_to"),
+        source=args.get("source"),
+        conversion_types=conversion_types,
+    )
+    return params.normalized(app_config)
 
 def search_documents(params: SearchParams):
     """搜索文档"""
@@ -112,3 +182,15 @@ def search_documents(params: SearchParams):
     logger.info(f"Search completed in {duration:.4f} seconds. Found {pagination.total} results.")
     
     return pagination
+
+
+def fetch_failed_documents(file_name: Optional[str], date_from: Optional[str], date_to: Optional[str]):
+    """Encapsulate failed document query logic for reuse."""
+    query = Document.query.filter_by(status='failed')
+    if file_name:
+        query = query.filter(Document.file_name.ilike(f'%{file_name}%'))
+    if date_from:
+        query = query.filter(Document.updated_at >= date_from)
+    if date_to:
+        query = query.filter(Document.updated_at <= date_to)
+    return query.order_by(Document.updated_at.desc())

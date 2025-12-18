@@ -1,77 +1,48 @@
-﻿import os
-import logging
-from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
-from flask import Flask, g, request
-from local_document_search.config import Config
+import os
+from flask import Flask
+from local_document_search.config import Config, load_environment
 from local_document_search.extensions import db, migrate
 from local_document_search.routes import convert, search, main, cleanup
+from local_document_search.utils.logger import configure_logging
 
 
-def create_app(config_class=Config):
-    app = Flask(__name__)
-    app.config.from_object(config_class)
-
-    # 初始化扩展
+def init_extensions(app: Flask) -> None:
+    """Initialize Flask extensions."""
     db.init_app(app)
     migrate.init_app(app, db)
 
-    # 注册蓝图
+
+def register_blueprints(app: Flask) -> None:
+    """Register application blueprints."""
     app.register_blueprint(main.bp)
     app.register_blueprint(convert.bp)
     app.register_blueprint(search.bp)
     app.register_blueprint(cleanup.cleanup_bp)
 
-    # 设置日志
-    setup_logging(app)
 
+def create_app(config_class: type[Config] = Config) -> Flask:
+    """Flask application factory."""
+    load_environment()
+    app = Flask(__name__)
+    app.config.from_object(config_class)
+
+    # Refresh DB URI from environment after load_environment, since Config is evaluated at import time
+    db_uri = os.environ.get('DATABASE_URL')
+    if db_uri:
+        app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
+
+    # Fail fast if DB URI missing to provide clearer diagnostics
+    if not app.config.get('SQLALCHEMY_DATABASE_URI'):
+        raise RuntimeError("SQLALCHEMY_DATABASE_URI is not set. Ensure DATABASE_URL is defined in the environment/.env.")
+
+    init_extensions(app)
+    register_blueprints(app)
+
+    configure_logging(app)
     app.logger.info('Application startup')
 
     return app
 
-def setup_logging(app):
-    # Forcefully remove all existing handlers to avoid duplicates
-    for handler in app.logger.handlers[:]:
-        app.logger.removeHandler(handler)
-        
-    log_level_str = app.config.get('LOG_LEVEL', 'INFO')
-    log_level = getattr(logging, log_level_str.upper(), logging.INFO)
-    app.logger.setLevel(log_level)
 
-    # Create a stream handler for console output (only in development)
-    time_fmt = app.config.get('LOG_TIME_FORMAT', '%Y-%m-%d %H:%M:%S')
-    if app.debug or os.environ.get('FLASK_ENV') == 'development':
-        stream_handler = logging.StreamHandler()
-        stream_handler.setFormatter(logging.Formatter(
-            '%(asctime)s | %(name)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s',
-            datefmt=time_fmt))
-        app.logger.addHandler(stream_handler)
-
-    # File handler - Timed Rotating
-    if not app.debug and not app.testing:
-        if not os.path.exists('logs'):
-            os.makedirs('logs')
-        
-        file_handler = TimedRotatingFileHandler(
-            filename=os.path.join('logs', 'app.log'),
-            when='midnight',
-            interval=1,
-            backupCount=app.config.get('LOG_BACKUP_COUNT'),
-            encoding='utf-8'
-        )
-        file_handler.setFormatter(logging.Formatter(
-            '%(asctime)s | %(name)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s',
-            datefmt=time_fmt))
-        file_handler.setLevel(log_level)
-        app.logger.addHandler(file_handler)
-
-        # Error file handler
-        error_handler = logging.FileHandler(
-            os.path.join('logs', 'errors.log'),
-            encoding='utf-8'
-        )
-        error_handler.setLevel(logging.ERROR)
-        error_handler.setFormatter(logging.Formatter(
-            '%(asctime)s | %(name)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s',
-            datefmt=time_fmt))
-        app.logger.addHandler(error_handler)
-
+# Expose a default app instance for WSGI/CLI conveniences
+from local_document_search.app import app  # noqa: E402,F401
