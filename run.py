@@ -7,8 +7,7 @@ from pathlib import Path
 SRC_PATH = Path(__file__).parent / "src"
 sys.path.insert(0, str(SRC_PATH))
 
-from local_document_search import app
-
+from local_document_search import create_app
 
 def print_banner(app):
     debug = bool(app.config.get("DEBUG") or app.config.get("FLASK_DEBUG"))
@@ -22,6 +21,7 @@ def print_banner(app):
 
 
 if __name__ == "__main__":
+    app = create_app()
     print_banner(app)
     app.logger.info("Application starting...")
     app.logger.info("Threaded server so /convert/stop stays responsive during ingestion")

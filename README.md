@@ -247,7 +247,7 @@ uv run run.py
 或使用新增入口（更贴近常规 Flask 启动方式）：
 
 ```bash
-python -m local_document_search.app
+python run.py
 ```
 
 ### 7. 命令行 CLI（conversion 试点）

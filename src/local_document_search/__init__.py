@@ -44,5 +44,3 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     return app
 
 
-# Expose a default app instance for WSGI/CLI conveniences
-from local_document_search.app import app  # noqa: E402,F401
