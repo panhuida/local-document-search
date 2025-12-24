@@ -24,8 +24,6 @@ if __name__ == "__main__":
     app = create_app()
     print_banner(app)
     app.logger.info("Application starting...")
-    app.logger.info("Threaded server so /convert/stop stays responsive during ingestion")
-
-    # Flask built-in dev server; keep threaded=True to avoid blocking SSE + control endpoint
-    app.run(host="127.0.0.1", port=5000, debug=app.config.get("DEBUG", False), use_reloader=False, threaded=True)
-
+    app.logger.info("Enabling threaded server so that /convert/stop can respond while ingestion stream is active")
+    # Use run_simple with threaded=True (Werkzeug) to avoid single-thread blocking SSE + control endpoint
+    run_simple("0.0.0.0", 5000, app, use_reloader=True, request_handler=ISORequestHandler, threaded=True)
